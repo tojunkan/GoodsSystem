@@ -129,7 +129,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Goods.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Warehouse.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="GoodsSystem.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="warehouse.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
