@@ -1,16 +1,21 @@
 #include "Goods.h"
+#include <iomanip> // 用于格式化输出
 
-void Goods::setId(string i) { id = i; }
-string Goods::getId() { return id; }
+// 默认构造
+Goods::Goods() : price(0), stock(0) {}
 
-void Goods::setName(string n) { name = n; }
-string Goods::getName() { return name; }
+// 参数构造
+Goods::Goods(std::string id, std::string name, double price, std::string manufacturer, int stock)
+    : id(id), name(name), price(price), manufacturer(manufacturer), stock(stock) {
+}
 
-void Goods::setPrice(double p) { price = p; }
-double Goods::getPrice() { return price; }
-
-void Goods::setFactory(string f) { factory = f; }
-string Goods::getFactory() { return factory; }
-
-void Goods::setStock(int s) { stock = s; }
-int Goods::getStock() { return stock; }
+// 显示信息
+void Goods::display() const {
+    std::cout << "--------------------------------------------------\n";
+    std::cout << "编号: " << id << "\n";
+    std::cout << "名称: " << name << "\n";
+    std::cout << "单价: " << price << " 元\n";
+    std::cout << "厂商: " << manufacturer << "\n";
+    std::cout << "库存: " << stock << "\n";
+    std::cout << "--------------------------------------------------\n";
+}
