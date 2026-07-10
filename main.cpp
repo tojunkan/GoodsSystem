@@ -10,6 +10,7 @@
 
 namespace fs = std::filesystem;
 
+
 // ---------- 常量 ----------
 const std::string WAREHOUSE_DIR = "./warehouses";
 
