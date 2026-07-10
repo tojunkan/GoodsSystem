@@ -100,6 +100,50 @@ public:
                          int quantity, 
                          int& newStock);
 
+    // 整体统计
+    struct OverallStatistics {
+        int totalGoods;      // 有效商品总数
+        int totalCategories;
+        int totalStock;
+        double totalValue;
+        double averagePrice;
+    };
+    OverallStatistics getOverallStatistics() const;
+
+    // 分类统计
+    struct CategoryStatistics {
+        std::string categoryName;
+        int goodsCount;
+        int stockSum;
+        double valueSum;
+    };
+    std::vector<CategoryStatistics> getCategoryStatistics() const;
+
+    // 价格直方图
+    struct PriceInterval {
+        double lowerBound;
+        double upperBound;  // 若为 infinity 表示“以上”
+        int count;
+    };
+    std::vector<PriceInterval> getPriceHistogram(double step = 100.0) const;
+
+    // 库存分布
+    struct StockDistribution {
+        int lowCount;    // stock <= lowThreshold
+        int mediumCount; // lowThreshold < stock <= highThreshold
+        int highCount;   // stock > highThreshold
+    };
+    StockDistribution getStockDistribution(int lowThreshold = 10, int highThreshold = 50) const;
+    std::vector<int> getAllStockValues() const; // 供前端自定义分布
+
+    // 生产商统计
+    struct ManufacturerStatistics {
+        std::string manufacturer;
+        int goodsCount;
+        double totalValue;
+    };
+    std::vector<ManufacturerStatistics> getManufacturerStatistics() const;
+
 private:
     std::vector<Category> categories;// 所有分区
     std::string filename;         // 数据文件名

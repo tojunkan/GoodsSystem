@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include <unordered_set>
 
 Warehouse::Warehouse(const std::string& fname) : filename(fname), isDirty(false) {
@@ -406,7 +407,7 @@ std::string Warehouse::addGoods(const std::string& categoryName,
         Cat = &categories[idx->second - 1]; // 返回指向分类的指针
     }
     else return "";
-	size_t prefixNum = categoryPrefixMap[categoryName], nextnum = categories[prefixNum - 1].maxSeq + 1;
+	int prefixNum = categoryPrefixMap[categoryName], nextnum = categories[prefixNum - 1].maxSeq + 1;
     std::string id;
     char buf[7];
     snprintf(buf, sizeof(buf), "%02d%04d", prefixNum, nextnum);
@@ -640,4 +641,136 @@ SellResult Warehouse::sellGoods(const std::string& id, int quantity, int& newSto
     newStock = goodsPtr->getStock();
     isDirty = true; // 数据已修改
     return SellResult::SUCCESS;
+}
+
+// ========== 统计函数 ==========
+
+Warehouse::OverallStatistics Warehouse::getOverallStatistics() const {
+    OverallStatistics stats{};
+    stats.totalCategories = static_cast<int>(categories.size());
+
+    for (const auto& cat : categories) {
+        for (const auto& pair : cat.goodsList) {
+            if (!pair.second) continue; // 跳过无效商品
+            const Goods& g = pair.first;
+            stats.totalGoods++;
+            stats.totalStock += g.getStock();
+            stats.totalValue += g.getPrice() * g.getStock();
+        }
+    }
+    stats.averagePrice = (stats.totalGoods > 0) ? (stats.totalValue / stats.totalGoods) : 0.0;
+    return stats;
+}
+
+std::vector<Warehouse::CategoryStatistics> Warehouse::getCategoryStatistics() const {
+    std::vector<CategoryStatistics> result;
+    result.reserve(categories.size());
+
+    for (const auto& cat : categories) {
+        CategoryStatistics cs{ cat.name, 0, 0, 0.0 };
+        for (const auto& pair : cat.goodsList) {
+            if (!pair.second) continue;
+            const Goods& g = pair.first;
+            cs.goodsCount++;
+            cs.stockSum += g.getStock();
+            cs.valueSum += g.getPrice() * g.getStock();
+        }
+        result.push_back(cs);
+    }
+    return result;
+}
+
+std::vector<Warehouse::PriceInterval> Warehouse::getPriceHistogram(double step) const {
+    if (step <= 0) step = 100.0; // 防御
+
+    // 先收集所有有效商品的价格
+    std::vector<double> prices;
+    for (const auto& cat : categories) {
+        for (const auto& pair : cat.goodsList) {
+            if (pair.second) {
+                prices.push_back(pair.first.getPrice());
+            }
+        }
+    }
+    if (prices.empty()) return {};
+
+    // 找最大价格，确定区间数量
+    double maxPrice = *std::max_element(prices.begin(), prices.end());
+    int intervals = static_cast<int>(std::ceil(maxPrice / step)) + 1; // 多一个无穷区间
+
+    std::vector<PriceInterval> result;
+    result.reserve(intervals);
+
+    for (int i = 0; i < intervals; ++i) {
+        double lower = i * step;
+        double upper = (i == intervals - 1) ? 0x7ff0000000000000 : (i + 1) * step; // -1 表示无穷
+        int count = 0;
+        for (double p : prices) {
+            if (p >= lower && (upper == 0x7ff0000000000000 || p < upper)) {
+                count++;
+            }
+        }
+        result.push_back({ lower, upper, count });
+    }
+    return result;
+}
+
+Warehouse::StockDistribution Warehouse::getStockDistribution(int lowThreshold, int highThreshold) const {
+    StockDistribution dist{ 0, 0, 0 };
+    for (const auto& cat : categories) {
+        for (const auto& pair : cat.goodsList) {
+            if (!pair.second) continue;
+            int stock = pair.first.getStock();
+            if (stock <= lowThreshold) {
+                dist.lowCount++;
+            }
+            else if (stock <= highThreshold) {
+                dist.mediumCount++;
+            }
+            else {
+                dist.highCount++;
+            }
+        }
+    }
+    return dist;
+}
+
+std::vector<int> Warehouse::getAllStockValues() const {
+    std::vector<int> values;
+    for (const auto& cat : categories) {
+        for (const auto& pair : cat.goodsList) {
+            if (pair.second) {
+                values.push_back(pair.first.getStock());
+            }
+        }
+    }
+    return values;
+}
+
+std::vector<Warehouse::ManufacturerStatistics> Warehouse::getManufacturerStatistics() const {
+    std::unordered_map<std::string, ManufacturerStatistics> map;
+    for (const auto& cat : categories) {
+        for (const auto& pair : cat.goodsList) {
+            if (!pair.second) continue;
+            const Goods& g = pair.first;
+            const std::string& mfr = g.getManufacturer();
+            auto it = map.find(mfr);
+            if (it == map.end()) {
+                map.emplace(mfr, ManufacturerStatistics{ mfr, 1, g.getPrice() * g.getStock() });
+            }
+            else {
+                it->second.goodsCount++;
+                it->second.totalValue += g.getPrice() * g.getStock();
+            }
+        }
+    }
+    std::vector<ManufacturerStatistics> result;
+    result.reserve(map.size());
+    for (auto& kv : map) {
+        result.push_back(std::move(kv.second));
+    }
+    // 按商品数降序排序（可选）
+    std::sort(result.begin(), result.end(),
+        [](const auto& a, const auto& b) { return a.goodsCount > b.goodsCount; });
+    return result;
 }

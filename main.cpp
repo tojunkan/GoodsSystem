@@ -3,7 +3,15 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <memory>
+#include <filesystem>
+#include <cmath>
 #include "Warehouse.h"
+
+namespace fs = std::filesystem;
+
+// ---------- 常量 ----------
+const std::string WAREHOUSE_DIR = "./warehouses";
 
 // ---------- 工具函数（输入辅助） ----------
 void clearInput() {
@@ -75,25 +83,150 @@ void displayGoodsList(const std::vector<Goods>& goodsList, const std::string& ti
     }
 }
 
+// ---------- 统计结果打印辅助函数 ----------
+void printOverallStatistics(const Warehouse::OverallStatistics& stats) {
+    std::cout << "\n========== 整体统计 ==========\n";
+    std::cout << "  有效商品总数 : " << stats.totalGoods << "\n";
+    std::cout << "  分类总数     : " << stats.totalCategories << "\n";
+    std::cout << "  总库存量     : " << stats.totalStock << "\n";
+    std::cout << "  总价值       : " << std::fixed << std::setprecision(2) << stats.totalValue << "\n";
+    std::cout << "  平均单价     : " << stats.averagePrice << "\n";
+}
+
+void printCategoryStatistics(const std::vector<Warehouse::CategoryStatistics>& stats) {
+    std::cout << "\n========== 分类统计 ==========\n";
+    if (stats.empty()) {
+        std::cout << "（无分类）\n";
+        return;
+    }
+    std::cout << std::left << std::setw(20) << "分类名称"
+        << std::setw(12) << "商品数"
+        << std::setw(12) << "总库存"
+        << std::setw(15) << "总价值" << "\n";
+    std::cout << std::string(60, '-') << "\n";
+    for (const auto& s : stats) {
+        std::cout << std::left << std::setw(20) << s.categoryName
+            << std::setw(12) << s.goodsCount
+            << std::setw(12) << s.stockSum
+            << std::fixed << std::setprecision(2) << std::setw(15) << s.valueSum << "\n";
+    }
+}
+
+void printPriceHistogram(const std::vector<Warehouse::PriceInterval>& hist) {
+    std::cout << "\n========== 价格直方图 ==========\n";
+    if (hist.empty()) {
+        std::cout << "（无商品）\n";
+        return;
+    }
+    std::cout << std::left << std::setw(15) << "价格区间"
+        << std::setw(10) << "数量" << "\n";
+    std::cout << std::string(30, '-') << "\n";
+    for (const auto& h : hist) {
+        std::string range;
+        if (std::isinf(h.upperBound)) {
+            range = "≥ " + std::to_string(h.lowerBound);
+        }
+        else {
+            range = std::to_string(h.lowerBound) + " - " + std::to_string(h.upperBound);
+        }
+        std::cout << std::left << std::setw(15) << range
+            << std::setw(10) << h.count << "\n";
+    }
+}
+
+void printStockDistribution(const Warehouse::StockDistribution& dist) {
+    std::cout << "\n========== 库存分布 ==========\n";
+    std::cout << "  低库存（≤ 阈值）   : " << dist.lowCount << "\n";
+    std::cout << "  中库存（阈值之间） : " << dist.mediumCount << "\n";
+    std::cout << "  高库存（> 阈值）   : " << dist.highCount << "\n";
+}
+
+void printManufacturerStatistics(const std::vector<Warehouse::ManufacturerStatistics>& stats) {
+    std::cout << "\n========== 生产商统计 ==========\n";
+    if (stats.empty()) {
+        std::cout << "（无商品）\n";
+        return;
+    }
+    std::cout << std::left << std::setw(25) << "生产商"
+        << std::setw(12) << "商品数"
+        << std::setw(15) << "总价值" << "\n";
+    std::cout << std::string(55, '-') << "\n";
+    for (const auto& s : stats) {
+        std::cout << std::left << std::setw(25) << s.manufacturer
+            << std::setw(12) << s.goodsCount
+            << std::fixed << std::setprecision(2) << std::setw(15) << s.totalValue << "\n";
+    }
+}
+
+// ---------- 仓库文件管理 ----------
+std::vector<std::string> scanWarehouseFiles(const std::string& dir) {
+    std::vector<std::string> files;
+    if (!fs::exists(dir)) {
+        fs::create_directories(dir);
+        return files;
+    }
+    for (const auto& entry : fs::directory_iterator(dir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+            files.push_back(entry.path().filename().string());
+        }
+    }
+    return files;
+}
+
+void createDefaultWarehouse(const std::string& dir) {
+    std::string path = dir + "/default.txt";
+    if (fs::exists(path)) return;
+    Warehouse defaultWarehouse(path);
+    std::vector<std::string> errors;
+    defaultWarehouse.saveData(errors);
+}
+
+std::string selectWarehouseFile(const std::vector<std::string>& files) {
+    if (files.empty()) return "";
+    std::cout << "\n请选择要打开的仓库：\n";
+    for (size_t i = 0; i < files.size(); ++i) {
+        std::cout << "  " << (i + 1) << ". " << files[i] << "\n";
+    }
+    int choice;
+    while (true) {
+        choice = readInt("请输入编号: ");
+        if (choice >= 1 && choice <= static_cast<int>(files.size()))
+            break;
+        std::cout << "无效编号，请重新输入。\n";
+    }
+    return files[choice - 1];
+}
+
 // ---------- 主菜单 ----------
 int main() {
-    Warehouse warehouse; // 默认使用 "warehouse.txt"
+    createDefaultWarehouse(WAREHOUSE_DIR);
+    auto files = scanWarehouseFiles(WAREHOUSE_DIR);
+    if (files.empty()) {
+        files.push_back("warehouse.txt");
+    }
 
-    Goods::getCurrentDate(); // 初始化当前日期
-    // 1. 加载数据
+    std::string selectedFile = selectWarehouseFile(files);
+    std::string fullPath = WAREHOUSE_DIR + "/" + selectedFile;
+    if (!fs::exists(fullPath)) {
+        fullPath = selectedFile;
+    }
+
+    std::unique_ptr<Warehouse> warehouse = std::make_unique<Warehouse>(fullPath);
+    Goods::getCurrentDate();
+
     std::vector<std::string> errors;
-    bool loadOk = warehouse.loadData(errors);
+    bool loadOk = warehouse->loadData(errors);
     if (!loadOk) {
-        std::cout << "[错误]:  数据加载失败（文件严重损坏），程序退出。\n";
+        std::cout << "[错误]: 数据加载失败（文件严重损坏），程序退出。\n";
         for (const auto& e : errors) std::cout << "  - " << e << "\n";
         return 1;
     }
     if (!errors.empty()) {
-        std::cout << "[警告]:  数据加载成功，但存在 " << errors.size() << " 个问题：\n";
+        std::cout << "[警告]: 数据加载成功，但存在 " << errors.size() << " 个问题：\n";
         for (const auto& e : errors) std::cout << "  - " << e << "\n";
     }
     else {
-        std::cout << "[信息]:  数据加载成功。\n";
+        std::cout << "[信息]: 数据加载成功。\n";
     }
 
     int choice;
@@ -123,11 +256,18 @@ int main() {
         std::cout << "  18. 按生产商搜索\n";
         std::cout << "  【销售】\n";
         std::cout << "  19. 销售商品\n";
-        // ====== 新增两个浏览功能 ======
         std::cout << "  【日期浏览】\n";
         std::cout << "  20. 浏览最近到货的商品（按天数）\n";
         std::cout << "  21. 浏览即将过期的商品（按天数）\n";
-        // ==============================
+        std::cout << "  【仓库管理】\n";
+        std::cout << "  22. 切换仓库\n";
+        std::cout << "  23. 创建新仓库\n";
+        std::cout << "  【统计】\n";
+        std::cout << "  24. 整体统计\n";
+        std::cout << "  25. 分类统计\n";
+        std::cout << "  26. 价格直方图\n";
+        std::cout << "  27. 库存分布\n";
+        std::cout << "  28. 生产商统计\n";
         std::cout << "  【系统】\n";
         std::cout << "  0.  保存并退出\n";
         std::cout << "====================================\n";
@@ -138,33 +278,33 @@ int main() {
             std::cout << "无效输入，请输入数字。\n";
             continue;
         }
-        clearInput(); // 清除换行
+        clearInput();
 
-        // ------ 分类管理 ------
+        // 分类管理
         if (choice == 1) {
             std::string name = readNonEmptyString("请输入新分类名称: ");
-            if (warehouse.createCategory(name))
-                std::cout << "[信息]:  分类创建成功。\n";
+            if (warehouse->createCategory(name))
+                std::cout << "[信息]: 分类创建成功。\n";
             else
-                std::cout << "[错误]:  创建失败：分类已存在。\n";
+                std::cout << "[错误]: 创建失败：分类已存在。\n";
         }
         else if (choice == 2) {
             std::string name = readNonEmptyString("请输入要删除的分类名称: ");
-            if (warehouse.deleteCategory(name))
-                std::cout << "[信息]:  分类删除成功。\n";
+            if (warehouse->deleteCategory(name))
+                std::cout << "[信息]: 分类删除成功。\n";
             else
-                std::cout << "[错误]:  删除失败：分类不存在或非空。\n";
+                std::cout << "[错误]: 删除失败：分类不存在或非空。\n";
         }
         else if (choice == 3) {
             std::string oldName = readNonEmptyString("请输入原分类名称: ");
             std::string newName = readNonEmptyString("请输入新分类名称: ");
-            if (warehouse.renameCategory(oldName, newName))
-                std::cout << "[信息]:  重命名成功。\n";
+            if (warehouse->renameCategory(oldName, newName))
+                std::cout << "[信息]: 重命名成功。\n";
             else
-                std::cout << "[错误]:  重命名失败：原分类不存在或新名称已被占用。\n";
+                std::cout << "[错误]: 重命名失败：原分类不存在或新名称已被占用。\n";
         }
         else if (choice == 4) {
-            const std::vector<Warehouse::Category>& categories = warehouse.getCategories();
+            const auto& categories = warehouse->getCategories();
             if (categories.empty()) {
                 std::cout << "暂无分类。\n";
             }
@@ -178,26 +318,28 @@ int main() {
             }
         }
 
-        // ------ 商品管理 ------
+        // 商品管理
         else if (choice == 5) {
             std::string category = readNonEmptyString("请输入分类名称: ");
             std::string name = readNonEmptyString("请输入商品名称: ");
             double price = readDouble("请输入单价: ");
             std::string manufacturer = readNonEmptyString("请输入生产商: ");
             int stock = readPositiveInt("请输入库存量: ");
+            std::string arrivalDate = readNonEmptyString("请输入到货日期（YYYY-MM-DD）: ");
+            std::string expiryDate = readNonEmptyString("请输入过期日期（YYYY-MM-DD）: ");
             std::string picture = readNonEmptyString("请输入图片路径（没有则直接回车）: ");
-            std::string newId = warehouse.addGoods(category, name, price, manufacturer, stock, picture);
+            std::string newId = warehouse->addGoods(category, name, price, manufacturer, stock, arrivalDate, expiryDate, picture);
             if (newId.empty())
-                std::cout << "[错误]:  上架失败：分类不存在或数据不合法。\n";
+                std::cout << "[错误]: 上架失败：分类不存在或数据不合法。\n";
             else
-                std::cout << "[信息]:  上架成功！新商品编号: " << newId << "\n";
+                std::cout << "[信息]: 上架成功！新商品编号: " << newId << "\n";
         }
         else if (choice == 6) {
             std::string id = readNonEmptyString("请输入要删除的商品编号: ");
-            if (warehouse.removeGoods(id))
-                std::cout << "[信息]:  下架成功。\n";
+            if (warehouse->removeGoods(id))
+                std::cout << "[信息]: 下架成功。\n";
             else
-                std::cout << "[错误]:  下架失败：商品不存在。\n";
+                std::cout << "[错误]: 下架失败：商品不存在。\n";
         }
         else if (choice == 7) {
             std::string id = readNonEmptyString("请输入要更新的商品编号: ");
@@ -208,67 +350,67 @@ int main() {
             std::string arrivalDate = readNonEmptyString("请输入新的到货日期（YYYY-MM-DD）: ");
             std::string expiryDate = readNonEmptyString("请输入新的过期日期（YYYY-MM-DD）: ");
             Goods updated(id, name, price, manufacturer, stock, arrivalDate, expiryDate, "");
-            if (warehouse.updateGoods(id, updated))
-                std::cout << "[信息]:  更新成功。\n";
+            if (warehouse->updateGoods(id, updated))
+                std::cout << "[信息]: 更新成功。\n";
             else
-                std::cout << "[错误]:  更新失败：商品不存在或编号不匹配。\n";
+                std::cout << "[错误]: 更新失败：商品不存在或编号不匹配。\n";
         }
         else if (choice == 8) {
             std::string id = readNonEmptyString("请输入要移动的商品编号: ");
             std::string newCategory = readNonEmptyString("请输入目标分类名称: ");
-            std::string newId = warehouse.moveGoodsToCategory(id, newCategory);
+            std::string newId = warehouse->moveGoodsToCategory(id, newCategory);
             if (newId.empty())
-                std::cout << "[错误]:  移动失败：商品不存在、无效或目标分类不存在。\n";
+                std::cout << "[错误]: 移动失败：商品不存在、无效或目标分类不存在。\n";
             else
-                std::cout << "[信息]:  移动成功！新商品编号: " << newId << "\n";
+                std::cout << "[信息]: 移动成功！新商品编号: " << newId << "\n";
         }
 
-        // ------ 浏览 ------
+        // 浏览
         else if (choice == 9) {
-            auto list = warehouse.browseAll();
+            auto list = warehouse->browseAll();
             displayGoodsList(list, "全部商品");
         }
         else if (choice == 10) {
             std::string category = readNonEmptyString("请输入分类名称: ");
-            auto list = warehouse.browseByCategory(category);
+            auto list = warehouse->browseByCategory(category);
             if (list.empty())
                 std::cout << "该分类下没有有效商品。\n";
             else
                 displayGoodsList(list, "分类 [" + category + "] 的商品");
         }
         else if (choice == 11) {
-            double min = readDouble("请输入最低价格（直接回车使用默认0）: ");
-            double max = readDouble("请输入最高价格（直接回车使用默认最大值）: ");
-            auto list = warehouse.browseByPriceRange(min, max);
+            double min = readDouble("请输入最低价格: ");
+            double max = readDouble("请输入最高价格: ");
+            auto list = warehouse->browseByPriceRange(min, max);
             displayGoodsList(list, "价格区间 [" + std::to_string(min) + ", " + std::to_string(max) + "] 的商品");
         }
         else if (choice == 12) {
-            int min = readInt("请输入最低库存（直接回车使用默认0）: ");
-            int max = readInt("请输入最高库存（直接回车使用默认最大值）: ");
-            auto list = warehouse.browseByStockRange(min, max);
+            int min = readInt("请输入最低库存: ");
+            int max = readInt("请输入最高库存: ");
+            auto list = warehouse->browseByStockRange(min, max);
             displayGoodsList(list, "库存区间 [" + std::to_string(min) + ", " + std::to_string(max) + "] 的商品");
         }
         else if (choice == 13) {
             std::string start = readNonEmptyString("请输入起始到货日期（YYYY-MM-DD）: ");
             std::string end = readNonEmptyString("请输入结束到货日期（YYYY-MM-DD）: ");
-            auto list = warehouse.browseByArrivalDateRange(start, end);
+            auto list = warehouse->browseByArrivalDateRange(start, end);
             displayGoodsList(list, "到货日期区间 [" + start + ", " + end + "] 的商品");
         }
         else if (choice == 14) {
             std::string start = readNonEmptyString("请输入起始过期日期（YYYY-MM-DD）: ");
             std::string end = readNonEmptyString("请输入结束过期日期（YYYY-MM-DD）: ");
-            auto list = warehouse.browseByExpiryDateRange(start, end);
+            auto list = warehouse->browseByExpiryDateRange(start, end);
             displayGoodsList(list, "过期日期区间 [" + start + ", " + end + "] 的商品");
         }
         else if (choice == 15) {
-            auto list = warehouse.browseInvalid();
+            auto list = warehouse->browseInvalid();
             displayGoodsList(list, "无效商品（待修复）");
         }
 
-        // ------ 搜索 ------
+        // 搜索
         else if (choice == 16) {
             std::string id = readNonEmptyString("请输入商品编号: ");
-            const Goods* g = warehouse.searchGoodsById(id);
+            const Goods* g = warehouse->searchGoodsById(id);
             if (g) {
                 std::cout << "\n找到商品：\n";
                 g->display();
@@ -279,63 +421,159 @@ int main() {
         }
         else if (choice == 17) {
             std::string name = readNonEmptyString("请输入商品名称: ");
-            auto list = warehouse.searchGoodsByName(name);
+            auto list = warehouse->searchGoodsByName(name);
             displayGoodsList(list, "名称包含 \"" + name + "\" 的商品");
         }
         else if (choice == 18) {
             std::string manufacturer = readNonEmptyString("请输入生产商: ");
-            auto list = warehouse.searchGoodsByManufacturer(manufacturer);
+            auto list = warehouse->searchGoodsByManufacturer(manufacturer);
             displayGoodsList(list, "生产商为 \"" + manufacturer + "\" 的商品");
         }
 
-        // ------ 销售 ------
+        // 销售
         else if (choice == 19) {
             std::string id = readNonEmptyString("请输入商品编号: ");
             int quantity = readPositiveInt("请输入购买数量: ");
             int newStock = 0;
-            SellResult result = warehouse.sellGoods(id, quantity, newStock);
+            SellResult result = warehouse->sellGoods(id, quantity, newStock);
             switch (result) {
             case SellResult::SUCCESS:
-                std::cout << "[信息]:  销售成功！剩余库存: " << newStock << "\n";
+                std::cout << "[信息]: 销售成功！剩余库存: " << newStock << "\n";
                 break;
             case SellResult::NOT_FOUND:
-                std::cout << "[错误]:  销售失败：商品不存在或无效。\n";
+                std::cout << "[错误]: 销售失败：商品不存在或无效。\n";
                 break;
             case SellResult::INSUFFICIENT_STOCK:
-                std::cout << "[错误]:  销售失败：库存不足。\n";
+                std::cout << "[错误]: 销售失败：库存不足。\n";
                 break;
             case SellResult::INVALID_QUANTITY:
-                std::cout << "[错误]:  销售失败：数量无效。\n";
+                std::cout << "[错误]: 销售失败：数量无效。\n";
                 break;
-            default: break;
             }
         }
 
-        // ====== 新增功能：按天数浏览最近到货 / 即将过期 ======
+        // 日期浏览
         else if (choice == 20) {
             int days = readPositiveInt("请输入天数（最近多少天到货）: ");
-            auto list = warehouse.browseByArrivalDateRecent(days);
+            auto list = warehouse->browseByArrivalDateRecent(days);
             displayGoodsList(list, "最近 " + std::to_string(days) + " 天到货的商品");
         }
         else if (choice == 21) {
             int days = readPositiveInt("请输入天数（多少天内过期）: ");
-            auto list = warehouse.browseByExpiryDateSoon(days);
+            auto list = warehouse->browseByExpiryDateSoon(days);
             displayGoodsList(list, "即将在 " + std::to_string(days) + " 天内过期的商品");
         }
-        // ====================================================
 
-        // ------ 退出 ------
+        // 仓库管理
+        else if (choice == 22) {
+            std::vector<std::string> saveErrors;
+            if (!warehouse->saveData(saveErrors) || !saveErrors.empty()) {
+                std::cout << "[错误]: 保存当前仓库失败，无法切换。\n";
+                for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
+                continue;
+            }
+            auto newFiles = scanWarehouseFiles(WAREHOUSE_DIR);
+            if (newFiles.empty()) {
+                std::cout << "[错误]: 仓库目录下没有可用的仓库文件。\n";
+                continue;
+            }
+            std::string newFile = selectWarehouseFile(newFiles);
+            if (newFile.empty()) continue;
+            std::string newPath = WAREHOUSE_DIR + "/" + newFile;
+            if (!fs::exists(newPath)) {
+                std::cout << "[错误]: 文件不存在。\n";
+                continue;
+            }
+            warehouse = std::make_unique<Warehouse>(newPath);
+            errors.clear();
+            loadOk = warehouse->loadData(errors);
+            if (!loadOk) {
+                std::cout << "[错误]: 新仓库加载失败，程序将退出。\n";
+                for (const auto& e : errors) std::cout << "  - " << e << "\n";
+                return 1;
+            }
+            if (!errors.empty()) {
+                std::cout << "[警告]: 新仓库加载成功，但存在 " << errors.size() << " 个问题：\n";
+                for (const auto& e : errors) std::cout << "  - " << e << "\n";
+            }
+            else {
+                std::cout << "[信息]: 成功切换到仓库: " << newFile << "\n";
+            }
+        }
+        else if (choice == 23) {
+            std::string name = readNonEmptyString("请输入新仓库名称（不含扩展名）: ");
+            std::string filename = name + ".txt";
+            std::string fullpath = WAREHOUSE_DIR + "/" + filename;
+            if (fs::exists(fullpath)) {
+                std::cout << "[错误]: 仓库文件已存在。\n";
+                continue;
+            }
+            Warehouse newWarehouse(fullpath);
+            std::vector<std::string> saveErrors;
+            if (!newWarehouse.saveData(saveErrors) || !saveErrors.empty()) {
+                std::cout << "[错误]: 创建仓库失败：\n";
+                for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
+                continue;
+            }
+            std::cout << "[信息]: 新仓库创建成功。\n";
+            std::cout << "是否立即切换到新仓库？(y/n): ";
+            std::string ans;
+            std::getline(std::cin, ans);
+            if (ans == "y" || ans == "Y") {
+                warehouse->saveData(saveErrors);
+                warehouse = std::make_unique<Warehouse>(fullpath);
+                errors.clear();
+                loadOk = warehouse->loadData(errors);
+                if (!loadOk) {
+                    std::cout << "[错误]: 新仓库加载失败。\n";
+                    for (const auto& e : errors) std::cout << "  - " << e << "\n";
+                }
+                else {
+                    std::cout << "[信息]: 已切换到新仓库。\n";
+                }
+            }
+        }
+
+        // ---------- 统计 ----------
+        else if (choice == 24) {
+            auto stats = warehouse->getOverallStatistics();
+            printOverallStatistics(stats);
+        }
+        else if (choice == 25) {
+            auto stats = warehouse->getCategoryStatistics();
+            printCategoryStatistics(stats);
+        }
+        else if (choice == 26) {
+            double step = readDouble("请输入价格步长（默认 100）: ");
+            if (step <= 0) step = 100.0;
+            auto hist = warehouse->getPriceHistogram(step);
+            printPriceHistogram(hist);
+        }
+        else if (choice == 27) {
+            int low = readInt("请输入低库存阈值（默认 10）: ");
+            int high = readInt("请输入高库存阈值（默认 50）: ");
+            if (low < 0) low = 10;
+            if (high < low) high = low + 1;
+            auto dist = warehouse->getStockDistribution(low, high);
+            printStockDistribution(dist);
+        }
+        else if (choice == 28) {
+            auto stats = warehouse->getManufacturerStatistics();
+            printManufacturerStatistics(stats);
+        }
+
+        // 退出
         else if (choice == 0) {
             std::cout << "正在保存数据...\n";
             std::vector<std::string> saveErrors;
-            bool saveOk = warehouse.saveData(saveErrors);
+            bool saveOk = warehouse->saveData(saveErrors);
             if (!saveOk || !saveErrors.empty()) {
-                std::cout << "[错误]:  保存时出现问题：\n";
+                std::cout << "[错误]: 保存时出现问题：\n";
                 for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
                 std::cout << "请检查文件权限。\n";
             }
             else {
-                std::cout << "[信息]:  数据已保存。\n";
+                std::cout << "[信息]: 数据已保存。\n";
             }
             std::cout << "感谢使用，再见！\n";
             break;
