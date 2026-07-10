@@ -54,6 +54,8 @@ public:
 
 	const Category* getCategoryByName(const std::string& categoryName) const; // 根据分类名称获取分类指针，如果不存在返回 nullptr
 
+	std::vector<const Category*> getCategoryByNameFuzzy(const std::string& categoryName) const; // 根据分类名称模糊搜索，返回所有匹配的分类指针列表
+
     // 3. 添加商品 (上架)
     std::string addGoods(const std::string& categoryName,
                          const std::string& name,
@@ -93,6 +95,8 @@ public:
     const Goods*  searchGoodsById(const std::string& id) const;
     //5. 查询商品 (按名称)
     std::vector<Goods> searchGoodsByName(const std::string& name) const;
+
+    std::vector<Goods> searchGoodsByNameFuzzy(const std::string& name) const;
 
 	std::vector<Goods> searchGoodsByManufacturer(const std::string& manufacturer) const;
 	// 6. 销售商品，返回最新库存量，如果商品不存在或库存不足，返回错误码

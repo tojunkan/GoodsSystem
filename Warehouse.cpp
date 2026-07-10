@@ -392,6 +392,16 @@ const Warehouse::Category* Warehouse::getCategoryByName(const std::string& categ
     return nullptr; // 分类不存在
 }
 
+std::vector<const Warehouse::Category*> Warehouse::getCategoryByNameFuzzy(const std::string& categoryName) const {
+	std::vector<const Category*> results;
+	for (const auto& category : categories) {
+		if (category.name.find(categoryName) != std::string::npos) {
+			results.push_back(&category);
+		}
+	}
+	return results;
+}
+
 // 添加商品
 std::string Warehouse::addGoods(const std::string& categoryName,
                                 const std::string& name,
@@ -443,6 +453,18 @@ std::vector<Goods> Warehouse::searchGoodsByName(const std::string& name) const {
         }
     }
     return results;
+}
+
+std::vector<Goods> Warehouse::searchGoodsByNameFuzzy(const std::string& name) const {
+	std::vector<Goods> results;
+	for (const auto& category : categories) {
+		for (const auto& tmp : category.goodsList) {
+			if (tmp.second && tmp.first.getName().find(name) != std::string::npos) {
+				results.push_back(tmp.first);
+			}
+		}
+	}
+	return results;
 }
 
 std::vector<Goods> Warehouse::searchGoodsByManufacturer(const std::string& manufacturer) const {
