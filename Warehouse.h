@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <optional>
 #include "Goods.h"
 
 class Warehouse {
@@ -27,6 +28,8 @@ public:
     struct GoodsWithCategory {
         std::string CategoryName;
         Goods goods;
+
+        void display(std::ostream& os = std::cout) const;
     };
 
     explicit Warehouse(const std::string& fname = "warehouse.txt");
@@ -92,7 +95,7 @@ public:
 	std::vector<GoodsWithCategory> browseByExpiryDateSoon(int days, std::string* err = nullptr) const; // 浏览即将过期的商品，days为天数
 
     // 5. 查询商品 (按编号)
-    const Goods*  searchGoodsById(const std::string& id, std::string* err) const;
+    std::optional<GoodsWithCategory>  searchGoodsById(const std::string& id, std::string* err) const;
     //5. 查询商品 (按名称)
     std::vector<GoodsWithCategory> searchGoodsByName(const std::string& name) const;
 
@@ -105,50 +108,6 @@ public:
     bool sellGoods(const std::string& id, 
                          int quantity, 
                          int& newStock, std::string* err);
-
-    // 整体统计
-    struct OverallStatistics {
-        int totalGoods;      // 有效商品总数
-        int totalCategories;
-        int totalStock;
-        double totalValue;
-        double averagePrice;
-    };
-    OverallStatistics getOverallStatistics() const;
-
-    // 分类统计
-    struct CategoryStatistics {
-        std::string categoryName;
-        int goodsCount;
-        int stockSum;
-        double valueSum;
-    };
-    std::vector<CategoryStatistics> getCategoryStatistics() const;
-
-    // 价格直方图
-    struct PriceInterval {
-        double lowerBound;
-        double upperBound;  // 若为 infinity 表示“以上”
-        int count;
-    };
-    std::vector<PriceInterval> getPriceHistogram(double step = 100.0) const;
-
-    // 库存分布
-    struct StockDistribution {
-        int lowCount;    // stock <= lowThreshold
-        int mediumCount; // lowThreshold < stock <= highThreshold
-        int highCount;   // stock > highThreshold
-    };
-    StockDistribution getStockDistribution(int lowThreshold = 10, int highThreshold = 50) const;
-    std::vector<int> getAllStockValues() const; // 供前端自定义分布
-
-    // 生产商统计
-    struct ManufacturerStatistics {
-        std::string manufacturer;
-        int goodsCount;
-        double totalValue;
-    };
-    std::vector<ManufacturerStatistics> getManufacturerStatistics() const;
 
 private:
     std::vector<Category> categories;// 所有分区

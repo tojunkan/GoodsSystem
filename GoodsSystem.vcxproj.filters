@@ -27,6 +27,9 @@
     <ClCompile Include="WelcomePage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Statistics.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Goods.h">
@@ -36,6 +39,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Statistics.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

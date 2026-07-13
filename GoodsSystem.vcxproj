@@ -151,12 +151,14 @@
   <ItemGroup>
     <ClCompile Include="Goods.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Statistics.cpp" />
     <ClCompile Include="Warehouse.cpp" />
     <ClCompile Include="WelcomePage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Goods.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Statistics.h" />
     <ClInclude Include="Warehouse.h" />
     <QtMoc Include="WelcomePage.h" />
   </ItemGroup>

@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <cmath>
 #include "Warehouse.h"
+#include "Statistics.h"
 
 namespace fs = std::filesystem;
 
@@ -79,8 +80,7 @@ void displayGoodsList(const std::vector<Warehouse::GoodsWithCategory>& goodsList
     }
     std::cout << "\n=== " << title << " ===\n";
     for (const auto& g : goodsList) {
-        std::cout << g.CategoryName << "\n";
-        g.goods.display();
+        g.display();
         std::cout << "\n";
     }
 }
@@ -97,7 +97,7 @@ void displayGoodsList(const std::vector<Goods>& goodsList, const std::string& ti
     }
 }
 // ---------- 统计结果打印辅助函数 ----------
-void printOverallStatistics(const Warehouse::OverallStatistics& stats) {
+void printOverallStatistics(const OverallStatistics& stats) {
     std::cout << "\n========== 整体统计 ==========\n";
     std::cout << "  有效商品总数 : " << stats.totalGoods << "\n";
     std::cout << "  分类总数     : " << stats.totalCategories << "\n";
@@ -106,7 +106,7 @@ void printOverallStatistics(const Warehouse::OverallStatistics& stats) {
     std::cout << "  平均单价     : " << stats.averagePrice << "\n";
 }
 
-void printCategoryStatistics(const std::vector<Warehouse::CategoryStatistics>& stats) {
+void printCategoryStatistics(const std::vector<CategoryStatistics>& stats) {
     std::cout << "\n========== 分类统计 ==========\n";
     if (stats.empty()) {
         std::cout << "（无分类）\n";
@@ -125,7 +125,7 @@ void printCategoryStatistics(const std::vector<Warehouse::CategoryStatistics>& s
     }
 }
 
-void printPriceHistogram(const std::vector<Warehouse::PriceInterval>& hist) {
+void printPriceHistogram(const std::vector<PriceInterval>& hist) {
     std::cout << "\n========== 价格直方图 ==========\n";
     if (hist.empty()) {
         std::cout << "（无商品）\n";
@@ -147,14 +147,14 @@ void printPriceHistogram(const std::vector<Warehouse::PriceInterval>& hist) {
     }
 }
 
-void printStockDistribution(const Warehouse::StockDistribution& dist) {
+void printStockDistribution(const StockDistribution& dist) {
     std::cout << "\n========== 库存分布 ==========\n";
     std::cout << "  低库存（≤ 阈值）   : " << dist.lowCount << "\n";
     std::cout << "  中库存（阈值之间） : " << dist.mediumCount << "\n";
     std::cout << "  高库存（> 阈值）   : " << dist.highCount << "\n";
 }
 
-void printManufacturerStatistics(const std::vector<Warehouse::ManufacturerStatistics>& stats) {
+void printManufacturerStatistics(const std::vector<ManufacturerStatistics>& stats) {
     std::cout << "\n========== 生产商统计 ==========\n";
     if (stats.empty()) {
         std::cout << "（无商品）\n";
@@ -244,6 +244,7 @@ int main() {
 
     int choice;
     std::string error;
+    Statistics statistics(*warehouse);
     while (true) {
         std::cout << "\n========== 商品销售管理系统 ==========\n";
         std::cout << "  【分类管理】\n";
@@ -426,10 +427,10 @@ int main() {
         // 搜索
         else if (choice == 16) {
             std::string id = readNonEmptyString("请输入商品编号: ");
-            const Goods* g = warehouse->searchGoodsById(id, &error);
-            if (g) {
+            auto g = warehouse->searchGoodsById(id, &error);
+            if (g.has_value()) {
                 std::cout << "\n找到商品：\n";
-                g->display();
+                g.value().display();
             }
             else {
                 std::cout << "[错误]: " << error << "\n";
@@ -542,17 +543,17 @@ int main() {
 
         // ---------- 统计 ----------
         else if (choice == 24) {
-            auto stats = warehouse->getOverallStatistics();
+            auto stats = statistics.getOverallStatistics();
             printOverallStatistics(stats);
         }
         else if (choice == 25) {
-            auto stats = warehouse->getCategoryStatistics();
+            auto stats = statistics.getCategoryStatistics();
             printCategoryStatistics(stats);
         }
         else if (choice == 26) {
             double step = readDouble("请输入价格步长（默认 100）: ");
             if (step <= 0) step = 100.0;
-            auto hist = warehouse->getPriceHistogram(step);
+            auto hist = statistics.getPriceHistogram(step);
             printPriceHistogram(hist);
         }
         else if (choice == 27) {
@@ -560,11 +561,11 @@ int main() {
             int high = readInt("请输入高库存阈值（默认 50）: ");
             if (low < 0) low = 10;
             if (high < low) high = low + 1;
-            auto dist = warehouse->getStockDistribution(low, high);
+            auto dist = statistics.getStockDistribution(low, high);
             printStockDistribution(dist);
         }
         else if (choice == 28) {
-            auto stats = warehouse->getManufacturerStatistics();
+            auto stats = statistics.getManufacturerStatistics();
             printManufacturerStatistics(stats);
         }
 
