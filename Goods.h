@@ -61,6 +61,10 @@ public:
 
 	static bool isValidDate(const std::string& date); // 检查日期格式是否合法（YYYY-MM-DD）
 
+    static bool isValidStock(const int n);
+
+    static bool isValidPrice(const double p);
+
 	static std::string isValidFields(const std::string& id, const std::string& name, double price, const std::string& manufacturer, int stock, const std::string& arrivalDate, const std::string& expiryDate); // 检查商品信息是否合法
 
     // 显示商品信息

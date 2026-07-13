@@ -8,6 +8,8 @@
 Warehouse::Warehouse(const std::string& fname) : filename(fname), isDirty(false) {
 }
 
+bool Warehouse::getDirtiness() { return this->isDirty; }
+
 bool Warehouse::loadData(std::vector<std::string>& errorLines) {
     //  1. 打开文件 
     std::ifstream inFile(filename);
@@ -432,73 +434,120 @@ std::string Warehouse::addGoods(const std::string& categoryName,
     return id;
 }
 
-const Goods* Warehouse::searchGoodsById(const std::string& id) const {
+const Goods* Warehouse::searchGoodsById(const std::string& id, std::string* err) const {
+    std::string error = "";
+    if (Goods::isValidId(id) == false) {
+        error = "id不合法。";
+        if(err)*err = error;
+        return nullptr;
+    }
     for (const auto& category : categories) {
         for (const auto& tmp : category.goodsList) {
             if (tmp.second && tmp.first.getId() == id) {
+                if(err)*err = error;
                 return &tmp.first;
             }
         }
     }
+    error = "未找到该商品。";
+    if(err)*err = error;
     return nullptr; // 未找到
 }
 
-std::vector<Goods> Warehouse::searchGoodsByName(const std::string& name) const {
-    std::vector<Goods> results;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::searchGoodsByName(const std::string& name) const {
+    std::vector<Warehouse::GoodsWithCategory> results;
+    Warehouse::GoodsWithCategory ans;
     for (const auto& category : categories) {
         for (const auto& tmp : category.goodsList) {
             if (tmp.second && tmp.first.getName() == name) {
-                results.push_back(tmp.first);
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+                results.push_back(ans);
             }
         }
     }
     return results;
 }
 
-std::vector<Goods> Warehouse::searchGoodsByNameFuzzy(const std::string& name) const {
-	std::vector<Goods> results;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::searchGoodsByNameFuzzy(const std::string& name) const {
+	std::vector<Warehouse::GoodsWithCategory> results;
+    Warehouse::GoodsWithCategory ans;
 	for (const auto& category : categories) {
 		for (const auto& tmp : category.goodsList) {
 			if (tmp.second && tmp.first.getName().find(name) != std::string::npos) {
-				results.push_back(tmp.first);
+                ans.CategoryName = category.name;
+                ans.goods = tmp.first;
+				results.push_back(ans);
 			}
 		}
 	}
 	return results;
 }
 
-std::vector<Goods> Warehouse::searchGoodsByManufacturer(const std::string& manufacturer) const {
-    std::vector<Goods> results;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::searchGoodsByManufacturer(const std::string& manufacturer) const {
+    std::vector<Warehouse::GoodsWithCategory> results;
+    Warehouse::GoodsWithCategory ans;
     for (const auto& category : categories) {
         for (const auto& tmp : category.goodsList) {
             if (tmp.second && tmp.first.getManufacturer() == manufacturer) {
-                results.push_back(tmp.first);
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+                results.push_back(ans);
             }
         }
     }
     return results;
 }
 
-std::vector<Goods> Warehouse::browseAll() const {
-    std::vector<Goods> allGoods;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::searchGoodsByManufacturerFuzzy(const std::string& manufacturer) const {
+    std::vector<Warehouse::GoodsWithCategory> results;
+    Warehouse::GoodsWithCategory ans;
     for (const auto& category : categories) {
         for (const auto& tmp : category.goodsList) {
-            if(tmp.second)allGoods.push_back(tmp.first);
+            if (tmp.second && tmp.first.getManufacturer().find(manufacturer) != std::string::npos) {
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+                results.push_back(ans);
+            }
+        }
+    }
+    return results;
+}
+
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseAll() const {
+    std::vector<Warehouse::GoodsWithCategory> allGoods;
+    Warehouse::GoodsWithCategory ans;
+    for (const auto& category : categories) {
+        for (const auto& tmp : category.goodsList) {
+            if (tmp.second) { 
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+                allGoods.push_back(ans); 
+            }
         }
     }
     return allGoods;
 }
 
-std::vector<Goods> Warehouse::browseByCategory(const std::string& categoryName) const {
-    std::vector<Goods> results;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByCategory(const std::string& categoryName, std::string* err) const {
+    std::string error = "";
+    std::vector<Warehouse::GoodsWithCategory> results;
+    if (this->categoryPrefixMap.find(categoryName) == categoryPrefixMap.end())
+    {
+        error = "不存在该分区。";
+        if(err)*err = error;
+        return results;
+    }
+    Warehouse::GoodsWithCategory ans;
+    ans.CategoryName = categoryName;
     for (const auto& category : categories) {
         if (category.name == categoryName) {
             for (const auto& tmp : category.goodsList) {
-                if(tmp.second)results.push_back(tmp.first);
+                if (tmp.second) {
+                    ans.goods = tmp.first;
+                    results.push_back(ans);
+                }
             }
             break;
         }
     }
+    if(err)*err = error;
     return results;
 }
 
@@ -514,64 +563,98 @@ std::vector<Goods> Warehouse::browseInvalid() const {
     return invalidGoods;
 }
 
-std::vector<Goods> Warehouse::browseByPriceRange(double minPrice, double maxPrice) const {
-    std::vector<Goods> results;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByPriceRange(double minPrice, double maxPrice, std::string* err) const {
+    std::string error = "";
+    std::vector<Warehouse::GoodsWithCategory> results;
+    if (!Goods::isValidPrice(minPrice) || !Goods::isValidPrice(maxPrice) || minPrice > maxPrice) {
+        error = "价格区间不合法。";
+        if(err)*err = error;
+        return results;
+    }
+    Warehouse::GoodsWithCategory ans;
     for (const auto& category : categories) {
         for (const auto& tmp : category.goodsList) {
             if(tmp.second && tmp.first.getPrice() >= minPrice && tmp.first.getPrice() <= maxPrice) {
-                results.push_back(tmp.first);
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+                results.push_back(ans);
             }
         }
     }
+    if(err)*err = error;
     return results;
 }
 
-std::vector<Goods> Warehouse::browseByStockRange(int minStock, int maxStock) const {
-    std::vector<Goods> results;
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByStockRange(int minStock, int maxStock, std::string* err) const {
+    std::string error = "";
+    std::vector<Warehouse::GoodsWithCategory> results;
+    if (!Goods::isValidStock(minStock) || !Goods::isValidStock(maxStock) || minStock > maxStock) {
+        error = "库存区间不合法。";
+        if(err)*err = error;
+        return results;
+    }
+    Warehouse::GoodsWithCategory ans;
     for (const auto& category : categories) {
         for (const auto& tmp : category.goodsList) {
             if(tmp.second && tmp.first.getStock() >= minStock && tmp.first.getStock() <= maxStock) {
-                results.push_back(tmp.first);
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+                results.push_back(ans);
             }
         }
     }
+    if(err)*err = error;
     return results;
 }
 
-std::vector<Goods> Warehouse::browseByArrivalDateRange(const std::string& startDate, const std::string& endDate) const {
-	std::vector<Goods> results;
-	if (startDate > endDate) return results; // 如果起始日期大于结束日期，返回空结果
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByArrivalDateRange(const std::string& startDate, const std::string& endDate, std::string* err) const {
+    std::string error = "";
+	std::vector<Warehouse::GoodsWithCategory> results;
+    if (!Goods::isValidDate(startDate) || !Goods::isValidDate(endDate) || startDate > endDate || endDate > Goods::CURRENT_DATE) {
+        error = "日期区间不合法。";
+        if(err)*err = error;
+        return results;
+    }
+    Warehouse::GoodsWithCategory ans;
 	for (const auto& category : categories) {
 		for (const auto& tmp : category.goodsList) {
 			if (tmp.second && tmp.first.getArrivalDate() >= startDate && tmp.first.getArrivalDate() <= endDate) {
-				results.push_back(tmp.first);
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+				results.push_back(ans);
 			}
 		}
 	}
+    if(err)*err = error;
 	return results;
 }
 
-std::vector<Goods> Warehouse::browseByExpiryDateRange(const std::string& startDate, const std::string& endDate) const {
-	std::vector<Goods> results;
-	if (startDate > endDate) return results; // 如果起始日期大于结束日期，返回空结果
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByExpiryDateRange(const std::string& startDate, const std::string& endDate, std::string* err) const {
+    std::string error = "";
+    std::vector<Warehouse::GoodsWithCategory> results;
+    if (!Goods::isValidDate(startDate) || !Goods::isValidDate(endDate) || startDate > endDate || endDate > Goods::CURRENT_DATE) {
+        error = "日期区间不合法。";
+        if(err)*err = error;
+        return results;
+    }
+    Warehouse::GoodsWithCategory ans;
 	for (const auto& category : categories) {
 		for (const auto& tmp : category.goodsList) {
 			if (tmp.second && tmp.first.getExpiryDate() >= startDate && tmp.first.getExpiryDate() <= endDate) {
-				results.push_back(tmp.first);
+                ans.CategoryName = category.name, ans.goods = tmp.first;
+				results.push_back(ans);
 			}
 		}
 	}
+    if(err)*err = error;
 	return results;
 }
 
-std::vector<Goods> Warehouse::browseByArrivalDateRecent(int days) const {
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByArrivalDateRecent(int days, std::string* err) const {
 	std::string start = Goods::DaysOffset(Goods::CURRENT_DATE, -days);
-	return browseByArrivalDateRange(start, Goods::CURRENT_DATE);
+	return browseByArrivalDateRange(start, Goods::CURRENT_DATE, err);
 }
 
-std::vector<Goods> Warehouse::browseByExpiryDateSoon(int days) const {
+std::vector<Warehouse::GoodsWithCategory> Warehouse::browseByExpiryDateSoon(int days, std::string* err) const {
 	std::string end = Goods::DaysOffset(Goods::CURRENT_DATE, days);
-	return browseByExpiryDateRange(Goods::CURRENT_DATE, end);
+	return browseByExpiryDateRange(Goods::CURRENT_DATE, end, err);
 }
 
 Goods* Warehouse::findAuxiliary(const std::string& id, int& categoryIndex, int& goodsIndex, bool invalid_filter) {
@@ -598,19 +681,19 @@ bool Warehouse::removeGoods(const std::string& id) {
 	return true;
 }
 
-bool Warehouse::updateGoods(const std::string& id, const Goods& updatedGoods) {
+bool Warehouse::updateGoods(const std::string& id, const Goods& updatedGoods, std::string* err) {
+    std::string error;
     int categoryIndex = -1, goodsIndex = -1;
     Goods* goodsPtr = findAuxiliary(id, categoryIndex, goodsIndex, false);
     if (!goodsPtr) {
+        error = "未找到商品。";
+        if (err)*err = error;
         return false; // 未找到
-    }
-    if (id != updatedGoods.getId()) {
-        return false; // ID 不一致，拒绝修改
     }
     categories[categoryIndex].goodsList[goodsIndex].first = updatedGoods;
     // 重新计算有效性
     auto& entry = categories[categoryIndex].goodsList[goodsIndex];
-    std::string err = Goods::isValidFields(
+    error = Goods::isValidFields(
         updatedGoods.getId(),
         updatedGoods.getName(),
         updatedGoods.getPrice(),
@@ -619,7 +702,8 @@ bool Warehouse::updateGoods(const std::string& id, const Goods& updatedGoods) {
 		updatedGoods.getArrivalDate(),
         updatedGoods.getExpiryDate()
     );
-    entry.second = err.empty();
+    entry.second = error.empty();
+    if(err)*err = error;
 	isDirty = true; // 数据已修改
     return true;
 }
@@ -646,23 +730,31 @@ std::string Warehouse::moveGoodsToCategory(const std::string& id, const std::str
     return newid; // 返回新id表示成功
 }
 
-SellResult Warehouse::sellGoods(const std::string& id, int quantity, int& newStock) {
+bool Warehouse::sellGoods(const std::string& id, int quantity, int& newStock, std::string* err) {
+    std::string error = "";
     int categoryIndex = -1, goodsIndex = -1;
     Goods* goodsPtr = findAuxiliary(id, categoryIndex, goodsIndex, true);//不支持销售无效商品
     if (!goodsPtr) {
-        return SellResult::NOT_FOUND; // 未找到
+        error = "未找到商品";
+        if(err)*err = error;
+        return false; // 未找到
     }
     if (quantity <= 0) {
-        return SellResult::INVALID_QUANTITY; // 无效数量
+        error = "输入数量不合法";
+        if(err)*err = error;
+        return false;
     }
     if (goodsPtr->getStock() < quantity) {
-        return SellResult::INSUFFICIENT_STOCK; // 库存不足
+        error = "库存不足";
+        if(err)*err = error;
+        return false;
     }
     // 扣减库存
     goodsPtr->setStock(goodsPtr->getStock() - quantity);
     newStock = goodsPtr->getStock();
     isDirty = true; // 数据已修改
-    return SellResult::SUCCESS;
+    if(err)*err = error;
+    return true;
 }
 
 // ========== 统计函数 ==========

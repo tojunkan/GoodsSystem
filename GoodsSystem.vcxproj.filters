@@ -24,6 +24,9 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="WelcomePage.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Goods.h">
@@ -42,13 +45,23 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="warehouse.txt">
-      <Filter>资源文件</Filter>
-    </Text>
+    <Text Include="warehouses\debugtest.txt" />
+    <Text Include="warehouses\debugtest2.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="GUI Design.md">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="WelcomePage.h">
+      <Filter>头文件</Filter>
+    </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="WelcomePage.ui" />
   </ItemGroup>
 </Project>

@@ -4,13 +4,6 @@
 #include <unordered_map>
 #include "Goods.h"
 
-enum class SellResult {
-    SUCCESS,
-    NOT_FOUND,
-    INSUFFICIENT_STOCK,
-    INVALID_QUANTITY
-};
-
 class Warehouse {
 
 public:
@@ -31,8 +24,15 @@ public:
         }
     };
 
+    struct GoodsWithCategory {
+        std::string CategoryName;
+        Goods goods;
+    };
+
     explicit Warehouse(const std::string& fname = "warehouse.txt");
 	~Warehouse() = default;
+
+    bool getDirtiness();
 
     // 1. 从文件加载数据
     bool loadData(std::vector<std::string>& errorLines);
@@ -63,46 +63,48 @@ public:
                          const std::string& manufacturer,
                          int stock,
                 		 const std::string& arrivalDate = "",
-                         const std::string& expiryDdate = Goods::DEFAULT_EXPIRY_DATE,
+                         const std::string& expiryDate = Goods::DEFAULT_EXPIRY_DATE,
                          const std::string& picture = "");
 
 	bool removeGoods(const std::string& id); // 删除商品 (下架)
 
     bool updateGoods(const std::string& id,
-		             const Goods& updatedGoods); // 更新商品信息 (除编号外)，如果编号不一致拒绝修改。
+		             const Goods& updatedGoods, std::string* err); // 更新商品信息 (除编号外)，如果编号不一致拒绝修改。
 
 	std::string moveGoodsToCategory(const std::string& id, const std::string& newCategoryName); // 移动商品到新分类，如果新分类不存在则拒绝移动，返回空字符串
     // 4. 浏览商品
-    std::vector<Goods> browseByCategory(const std::string& categoryName) const;
+    std::vector<GoodsWithCategory> browseByCategory(const std::string& categoryName, std::string* err) const;
 
-	std::vector<Goods> browseAll() const;
+	std::vector<GoodsWithCategory> browseAll() const;
 
 	std::vector<Goods> browseInvalid() const; // 浏览所有信息不完整的商品
 
-	std::vector<Goods> browseByPriceRange(double minPrice = DEFAULT_MIN_PRICE, double maxPrice = DEFAULT_MAX_PRICE) const;
+	std::vector<GoodsWithCategory> browseByPriceRange(double minPrice = DEFAULT_MIN_PRICE, double maxPrice = DEFAULT_MAX_PRICE, std::string* err = nullptr) const;
 
-	std::vector<Goods> browseByStockRange(int minStock = DEFAULT_MIN_STOCK, int maxStock = DEFAULT_MAX_STOCK) const;
+	std::vector<GoodsWithCategory> browseByStockRange(int minStock = DEFAULT_MIN_STOCK, int maxStock = DEFAULT_MAX_STOCK, std::string* err = nullptr) const;
 
-	std::vector<Goods> browseByArrivalDateRange(const std::string& startDate, const std::string& endDate = Goods::CURRENT_DATE) const;
+	std::vector<GoodsWithCategory> browseByArrivalDateRange(const std::string& startDate, const std::string& endDate = Goods::CURRENT_DATE, std::string* err = nullptr) const;
 
-	std::vector<Goods> browseByExpiryDateRange(const std::string& startDate, const std::string& endDate) const;
+	std::vector<GoodsWithCategory> browseByExpiryDateRange(const std::string& startDate, const std::string& endDate, std::string* err = nullptr) const;
 
-	std::vector<Goods> browseByArrivalDateRecent(int days) const; // 浏览最近到货的商品，days为天数
+	std::vector<GoodsWithCategory> browseByArrivalDateRecent(int days, std::string* err = nullptr) const; // 浏览最近到货的商品，days为天数
 
-	std::vector<Goods> browseByExpiryDateSoon(int days) const; // 浏览即将过期的商品，days为天数
+	std::vector<GoodsWithCategory> browseByExpiryDateSoon(int days, std::string* err = nullptr) const; // 浏览即将过期的商品，days为天数
 
     // 5. 查询商品 (按编号)
-    const Goods*  searchGoodsById(const std::string& id) const;
+    const Goods*  searchGoodsById(const std::string& id, std::string* err) const;
     //5. 查询商品 (按名称)
-    std::vector<Goods> searchGoodsByName(const std::string& name) const;
+    std::vector<GoodsWithCategory> searchGoodsByName(const std::string& name) const;
 
-    std::vector<Goods> searchGoodsByNameFuzzy(const std::string& name) const;
+    std::vector<GoodsWithCategory> searchGoodsByNameFuzzy(const std::string& name) const;
 
-	std::vector<Goods> searchGoodsByManufacturer(const std::string& manufacturer) const;
+	std::vector<GoodsWithCategory> searchGoodsByManufacturer(const std::string& manufacturer) const;
+
+    std::vector<GoodsWithCategory> searchGoodsByManufacturerFuzzy(const std::string& manufacturer) const;
 	// 6. 销售商品，返回最新库存量，如果商品不存在或库存不足，返回错误码
-    SellResult sellGoods(const std::string& id, 
+    bool sellGoods(const std::string& id, 
                          int quantity, 
-                         int& newStock);
+                         int& newStock, std::string* err);
 
     // 整体统计
     struct OverallStatistics {

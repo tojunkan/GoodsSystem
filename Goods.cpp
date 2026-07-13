@@ -184,11 +184,19 @@ bool Goods::isValidDate(const std::string& date) {
     return true;
 }
 
+bool Goods::isValidPrice(const double p) {
+    return p >= 0;
+}
+
+bool Goods::isValidStock(const int n) {
+    return n >= 0;
+}
+
 std::string Goods::isValidFields(const std::string& id, const std::string& name, double price, const std::string& manufacturer, int stock, const std::string& arrivalDate, const std::string& expiryDate) {
     if (name.empty()) return "商品名称不能为空";
-    if (price < 0) return "单价不能为负数";
+    if (!isValidPrice) return "单价不能为负数";
     if (manufacturer.empty()) return "生产商不能为空";
-    if (stock < 0) return "库存量不能为负数";
+    if (!isValidStock) return "库存量不能为负数";
 	if (!isValidId(id)) return "商品编号不合法";
 	if (!isValidDate(arrivalDate)) return "到货日期不合法";
     if (arrivalDate > CURRENT_DATE) return "到货日期不能晚于今天";

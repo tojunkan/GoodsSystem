@@ -72,6 +72,19 @@ void pressAnyKeyToContinue() {
 }
 
 // ---------- 显示商品列表 ----------
+void displayGoodsList(const std::vector<Warehouse::GoodsWithCategory>& goodsList, const std::string& title) {
+    if (goodsList.empty()) {
+        std::cout << "（无商品）\n";
+        return;
+    }
+    std::cout << "\n=== " << title << " ===\n";
+    for (const auto& g : goodsList) {
+        std::cout << g.CategoryName << "\n";
+        g.goods.display();
+        std::cout << "\n";
+    }
+}
+
 void displayGoodsList(const std::vector<Goods>& goodsList, const std::string& title) {
     if (goodsList.empty()) {
         std::cout << "（无商品）\n";
@@ -83,7 +96,6 @@ void displayGoodsList(const std::vector<Goods>& goodsList, const std::string& ti
         std::cout << "\n";
     }
 }
-
 // ---------- 统计结果打印辅助函数 ----------
 void printOverallStatistics(const Warehouse::OverallStatistics& stats) {
     std::cout << "\n========== 整体统计 ==========\n";
@@ -231,6 +243,7 @@ int main() {
     }
 
     int choice;
+    std::string error;
     while (true) {
         std::cout << "\n========== 商品销售管理系统 ==========\n";
         std::cout << "  【分类管理】\n";
@@ -351,10 +364,10 @@ int main() {
             std::string arrivalDate = readNonEmptyString("请输入新的到货日期（YYYY-MM-DD）: ");
             std::string expiryDate = readNonEmptyString("请输入新的过期日期（YYYY-MM-DD）: ");
             Goods updated(id, name, price, manufacturer, stock, arrivalDate, expiryDate, "");
-            if (warehouse->updateGoods(id, updated))
+            if (warehouse->updateGoods(id, updated, &error))
                 std::cout << "[信息]: 更新成功。\n";
             else
-                std::cout << "[错误]: 更新失败：商品不存在或编号不匹配。\n";
+                std::cout << "[错误]: "<<error<<"\n";
         }
         else if (choice == 8) {
             std::string id = readNonEmptyString("请输入要移动的商品编号: ");
@@ -373,7 +386,8 @@ int main() {
         }
         else if (choice == 10) {
             std::string category = readNonEmptyString("请输入分类名称: ");
-            auto list = warehouse->browseByCategory(category);
+            auto list = warehouse->browseByCategory(category, &error);
+            if (!error.empty())std::cout << "[错误]: "<<error<<"\n";
             if (list.empty())
                 std::cout << "该分类下没有有效商品。\n";
             else
@@ -400,8 +414,9 @@ int main() {
         else if (choice == 14) {
             std::string start = readNonEmptyString("请输入起始过期日期（YYYY-MM-DD）: ");
             std::string end = readNonEmptyString("请输入结束过期日期（YYYY-MM-DD）: ");
-            auto list = warehouse->browseByExpiryDateRange(start, end);
-            displayGoodsList(list, "过期日期区间 [" + start + ", " + end + "] 的商品");
+            auto list = warehouse->browseByExpiryDateRange(start, end, &error);
+            if (error.empty())displayGoodsList(list, "过期日期区间 [" + start + ", " + end + "] 的商品");
+            else std::cout << "[错误]: " << error << "\n";
         }
         else if (choice == 15) {
             auto list = warehouse->browseInvalid();
@@ -411,13 +426,13 @@ int main() {
         // 搜索
         else if (choice == 16) {
             std::string id = readNonEmptyString("请输入商品编号: ");
-            const Goods* g = warehouse->searchGoodsById(id);
+            const Goods* g = warehouse->searchGoodsById(id, &error);
             if (g) {
                 std::cout << "\n找到商品：\n";
                 g->display();
             }
             else {
-                std::cout << "未找到该商品。\n";
+                std::cout << "[错误]: " << error << "\n";
             }
         }
         else if (choice == 17) {
@@ -436,32 +451,22 @@ int main() {
             std::string id = readNonEmptyString("请输入商品编号: ");
             int quantity = readPositiveInt("请输入购买数量: ");
             int newStock = 0;
-            SellResult result = warehouse->sellGoods(id, quantity, newStock);
-            switch (result) {
-            case SellResult::SUCCESS:
-                std::cout << "[信息]: 销售成功！剩余库存: " << newStock << "\n";
-                break;
-            case SellResult::NOT_FOUND:
-                std::cout << "[错误]: 销售失败：商品不存在或无效。\n";
-                break;
-            case SellResult::INSUFFICIENT_STOCK:
-                std::cout << "[错误]: 销售失败：库存不足。\n";
-                break;
-            case SellResult::INVALID_QUANTITY:
-                std::cout << "[错误]: 销售失败：数量无效。\n";
-                break;
+            bool result = warehouse->sellGoods(id, quantity, newStock, &error);
+            if(result)std::cout << "[信息]: 销售成功！剩余库存: " << newStock << "\n";
+            else {
+                std::cout << "[错误]: " << error << "\n";
             }
         }
 
         // 日期浏览
         else if (choice == 20) {
             int days = readPositiveInt("请输入天数（最近多少天到货）: ");
-            auto list = warehouse->browseByArrivalDateRecent(days);
+            auto list = warehouse->browseByArrivalDateRecent(days, &error);
             displayGoodsList(list, "最近 " + std::to_string(days) + " 天到货的商品");
         }
         else if (choice == 21) {
             int days = readPositiveInt("请输入天数（多少天内过期）: ");
-            auto list = warehouse->browseByExpiryDateSoon(days);
+            auto list = warehouse->browseByExpiryDateSoon(days, &error);
             displayGoodsList(list, "即将在 " + std::to_string(days) + " 天内过期的商品");
         }
 
