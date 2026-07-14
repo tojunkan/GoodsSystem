@@ -13,36 +13,72 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="头文件\Backend">
+      <UniqueIdentifier>{59e790f2-d168-484d-a1a1-06c8171df071}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Backend">
+      <UniqueIdentifier>{e2995b87-4864-42ee-a1a9-179acb80ab44}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Goods.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Warehouse.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="WelcomePage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Condition.cpp">
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="FilterNode.cpp">
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Goods.cpp">
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Parse.cpp">
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Query.cpp">
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
     <ClCompile Include="Statistics.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Warehouse.cpp">
+      <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="BackendAPI.cpp">
+      <Filter>源文件\Backend</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Goods.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="Condition.h">
+      <Filter>头文件\Backend</Filter>
     </ClInclude>
-    <ClInclude Include="Warehouse.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="FilterNode.h">
+      <Filter>头文件\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Goods.h">
+      <Filter>头文件\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Parse.h">
+      <Filter>头文件\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Query.h">
+      <Filter>头文件\Backend</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\Backend</Filter>
     </ClInclude>
     <ClInclude Include="Statistics.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Warehouse.h">
+      <Filter>头文件\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="BackendAPI.h">
+      <Filter>头文件\Backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

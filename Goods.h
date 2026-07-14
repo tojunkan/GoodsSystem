@@ -13,12 +13,12 @@ private:
 	std::string expiryDate;  // 保质期（格式: YYYY-MM-DD）
 	std::string picture;     // 图片路径（仅保存路径字符串）
 	
-    static std::string CURRENT_DATE; // 当前日期（格式: YYYY-MM-DD），用于判断商品是否过期
 
     static std::string generateFullId(const std::string& raw6); // 生成完整的商品编号（含校验位）
 	static char generateCheckDigit(const std::string& raw6); // 生成校验位的私有方法
 public:
 
+    static std::string CURRENT_DATE; // 当前日期（格式: YYYY-MM-DD），用于判断商品是否过期
 	static const std::string DEFAULT_EXPIRY_DATE; // 永不过期的特殊值
     // 默认构造函数
     Goods() = default;

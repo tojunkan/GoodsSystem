@@ -9,12 +9,12 @@ class Warehouse {
 
 public:
     // 浏览价格区间的默认值
-    static constexpr double DEFAULT_MIN_PRICE = 0.0;
-    static constexpr double DEFAULT_MAX_PRICE = 0x7ff0000000000000;
+    static inline constexpr double DEFAULT_MIN_PRICE = 0.0;
+    static inline constexpr double DEFAULT_MAX_PRICE = std::numeric_limits<double>::infinity();
 
     // 浏览库存区间的默认值
-    static constexpr int DEFAULT_MIN_STOCK = 0;
-	static constexpr int DEFAULT_MAX_STOCK = 0x7fffffff;
+    static inline constexpr int DEFAULT_MIN_STOCK = 0;
+	static inline constexpr int DEFAULT_MAX_STOCK = std::numeric_limits<int>::max();
     struct Category {
         std::string name; // 分类名称
         std::vector<std::pair<Goods, bool>> goodsList; // 该分类下的商品列表，bool如果是false意味着文件读取不完整
@@ -75,35 +75,49 @@ public:
 		             const Goods& updatedGoods, std::string* err); // 更新商品信息 (除编号外)，如果编号不一致拒绝修改。
 
 	std::string moveGoodsToCategory(const std::string& id, const std::string& newCategoryName); // 移动商品到新分类，如果新分类不存在则拒绝移动，返回空字符串
-    // 4. 浏览商品
-    std::vector<GoodsWithCategory> browseByCategory(const std::string& categoryName, std::string* err) const;
+ //   // 4. 浏览商品
+ //   std::vector<GoodsWithCategory> browseByCategory(const std::string& categoryName, std::string* err) const;
 
 	std::vector<GoodsWithCategory> browseAll() const;
 
 	std::vector<Goods> browseInvalid() const; // 浏览所有信息不完整的商品
 
-	std::vector<GoodsWithCategory> browseByPriceRange(double minPrice = DEFAULT_MIN_PRICE, double maxPrice = DEFAULT_MAX_PRICE, std::string* err = nullptr) const;
+	//std::vector<GoodsWithCategory> browseByPriceRange(double minPrice = DEFAULT_MIN_PRICE, double maxPrice = DEFAULT_MAX_PRICE, std::string* err = nullptr) const;
 
-	std::vector<GoodsWithCategory> browseByStockRange(int minStock = DEFAULT_MIN_STOCK, int maxStock = DEFAULT_MAX_STOCK, std::string* err = nullptr) const;
+	//std::vector<GoodsWithCategory> browseByStockRange(int minStock = DEFAULT_MIN_STOCK, int maxStock = DEFAULT_MAX_STOCK, std::string* err = nullptr) const;
 
-	std::vector<GoodsWithCategory> browseByArrivalDateRange(const std::string& startDate, const std::string& endDate = Goods::CURRENT_DATE, std::string* err = nullptr) const;
+	//std::vector<GoodsWithCategory> browseByArrivalDateRange(const std::string& startDate, const std::string& endDate = Goods::CURRENT_DATE, std::string* err = nullptr) const;
 
-	std::vector<GoodsWithCategory> browseByExpiryDateRange(const std::string& startDate, const std::string& endDate, std::string* err = nullptr) const;
+	//std::vector<GoodsWithCategory> browseByExpiryDateRange(const std::string& startDate, const std::string& endDate, std::string* err = nullptr) const;
 
-	std::vector<GoodsWithCategory> browseByArrivalDateRecent(int days, std::string* err = nullptr) const; // 浏览最近到货的商品，days为天数
+	//std::vector<GoodsWithCategory> browseByArrivalDateRecent(int days, std::string* err = nullptr) const; // 浏览最近到货的商品，days为天数
 
-	std::vector<GoodsWithCategory> browseByExpiryDateSoon(int days, std::string* err = nullptr) const; // 浏览即将过期的商品，days为天数
+	//std::vector<GoodsWithCategory> browseByExpiryDateSoon(int days, std::string* err = nullptr) const; // 浏览即将过期的商品，days为天数
 
-    // 5. 查询商品 (按编号)
-    std::optional<GoodsWithCategory>  searchGoodsById(const std::string& id, std::string* err) const;
-    //5. 查询商品 (按名称)
-    std::vector<GoodsWithCategory> searchGoodsByName(const std::string& name) const;
+ //   // 5. 查询商品 (按编号)
+ //   std::optional<GoodsWithCategory>  searchGoodsById(const std::string& id, std::string* err) const;
+ //   //5. 查询商品 (按名称)
+ //   std::vector<GoodsWithCategory> searchGoodsByName(const std::string& name) const;
 
-    std::vector<GoodsWithCategory> searchGoodsByNameFuzzy(const std::string& name) const;
+ //   std::vector<GoodsWithCategory> searchGoodsByNameFuzzy(const std::string& name) const;
 
-	std::vector<GoodsWithCategory> searchGoodsByManufacturer(const std::string& manufacturer) const;
+	//std::vector<GoodsWithCategory> searchGoodsByManufacturer(const std::string& manufacturer) const;
 
-    std::vector<GoodsWithCategory> searchGoodsByManufacturerFuzzy(const std::string& manufacturer) const;
+ //   std::vector<GoodsWithCategory> searchGoodsByManufacturerFuzzy(const std::string& manufacturer) const;
+
+    template<typename Predicate>
+    std::vector<Warehouse::GoodsWithCategory> findGoodsIf(Predicate pred) const {
+        std::vector<Warehouse::GoodsWithCategory> res;
+        for (auto& category : categories) {
+            for (auto& tmp : category.goodsList) {
+                if (tmp.second && pred(tmp.first, category.name)) {
+                    res.push_back({category.name,  tmp.first });
+                }
+            }
+        }
+        return res;
+    }
+
 	// 6. 销售商品，返回最新库存量，如果商品不存在或库存不足，返回错误码
     bool sellGoods(const std::string& id, 
                          int quantity, 

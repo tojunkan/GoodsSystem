@@ -8,9 +8,9 @@
 #include <cmath>
 #include "Warehouse.h"
 #include "Statistics.h"
+#include "BackendAPI.h"
 
 namespace fs = std::filesystem;
-
 
 // ---------- 常量 ----------
 const std::string WAREHOUSE_DIR = "./warehouses";
@@ -96,6 +96,7 @@ void displayGoodsList(const std::vector<Goods>& goodsList, const std::string& ti
         std::cout << "\n";
     }
 }
+
 // ---------- 统计结果打印辅助函数 ----------
 void printOverallStatistics(const OverallStatistics& stats) {
     std::cout << "\n========== 整体统计 ==========\n";
@@ -171,31 +172,14 @@ void printManufacturerStatistics(const std::vector<ManufacturerStatistics>& stat
     }
 }
 
-// ---------- 仓库文件管理 ----------
-std::vector<std::string> scanWarehouseFiles(const std::string& dir) {
-    std::vector<std::string> files;
-    if (!fs::exists(dir)) {
-        fs::create_directories(dir);
-        return files;
+// ---------- 主函数 ----------
+int main() {
+    apiCreateWarehouseFile(WAREHOUSE_DIR + "/default.txt");
+    auto files = apiScanWarehouseFiles(WAREHOUSE_DIR);
+    if (files.empty()) {
+        files.push_back("warehouse.txt");
     }
-    for (const auto& entry : fs::directory_iterator(dir)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".txt") {
-            files.push_back(entry.path().filename().string());
-        }
-    }
-    return files;
-}
 
-void createDefaultWarehouse(const std::string& dir) {
-    std::string path = dir + "/default.txt";
-    if (fs::exists(path)) return;
-    Warehouse defaultWarehouse(path);
-    std::vector<std::string> errors;
-    defaultWarehouse.saveData(errors);
-}
-
-std::string selectWarehouseFile(const std::vector<std::string>& files) {
-    if (files.empty()) return "";
     std::cout << "\n请选择要打开的仓库：\n";
     for (size_t i = 0; i < files.size(); ++i) {
         std::cout << "  " << (i + 1) << ". " << files[i] << "\n";
@@ -207,18 +191,7 @@ std::string selectWarehouseFile(const std::vector<std::string>& files) {
             break;
         std::cout << "无效编号，请重新输入。\n";
     }
-    return files[choice - 1];
-}
-
-// ---------- 主菜单 ----------
-int main() {
-    createDefaultWarehouse(WAREHOUSE_DIR);
-    auto files = scanWarehouseFiles(WAREHOUSE_DIR);
-    if (files.empty()) {
-        files.push_back("warehouse.txt");
-    }
-
-    std::string selectedFile = selectWarehouseFile(files);
+    std::string selectedFile = files[choice - 1];
     std::string fullPath = WAREHOUSE_DIR + "/" + selectedFile;
     if (!fs::exists(fullPath)) {
         fullPath = selectedFile;
@@ -228,7 +201,7 @@ int main() {
     Goods::getCurrentDate();
 
     std::vector<std::string> errors;
-    bool loadOk = warehouse->loadData(errors);
+    bool loadOk = apiLoadWarehouse(*warehouse, fullPath, errors);
     if (!loadOk) {
         std::cout << "[错误]: 数据加载失败（文件严重损坏），程序退出。\n";
         for (const auto& e : errors) std::cout << "  - " << e << "\n";
@@ -242,9 +215,8 @@ int main() {
         std::cout << "[信息]: 数据加载成功。\n";
     }
 
-    int choice;
-    std::string error;
-    Statistics statistics(*warehouse);
+    int menuChoice;
+    std::string errorMsg;
     while (true) {
         std::cout << "\n========== 商品销售管理系统 ==========\n";
         std::cout << "  【分类管理】\n";
@@ -288,53 +260,53 @@ int main() {
         std::cout << "====================================\n";
         std::cout << "请选择操作: ";
 
-        if (!(std::cin >> choice)) {
+        if (!(std::cin >> menuChoice)) {
             clearInput();
             std::cout << "无效输入，请输入数字。\n";
             continue;
         }
         clearInput();
 
-        // 分类管理
-        if (choice == 1) {
+        switch (menuChoice) {
+        case 1: {
             std::string name = readNonEmptyString("请输入新分类名称: ");
-            if (warehouse->createCategory(name))
+            if (apiCreateCategory(*warehouse, name))
                 std::cout << "[信息]: 分类创建成功。\n";
             else
                 std::cout << "[错误]: 创建失败：分类已存在。\n";
+            break;
         }
-        else if (choice == 2) {
+        case 2: {
             std::string name = readNonEmptyString("请输入要删除的分类名称: ");
-            if (warehouse->deleteCategory(name))
+            if (apiDeleteCategory(*warehouse, name))
                 std::cout << "[信息]: 分类删除成功。\n";
             else
                 std::cout << "[错误]: 删除失败：分类不存在或非空。\n";
+            break;
         }
-        else if (choice == 3) {
+        case 3: {
             std::string oldName = readNonEmptyString("请输入原分类名称: ");
             std::string newName = readNonEmptyString("请输入新分类名称: ");
-            if (warehouse->renameCategory(oldName, newName))
+            if (apiRenameCategory(*warehouse, oldName, newName))
                 std::cout << "[信息]: 重命名成功。\n";
             else
                 std::cout << "[错误]: 重命名失败：原分类不存在或新名称已被占用。\n";
+            break;
         }
-        else if (choice == 4) {
-            const auto& categories = warehouse->getCategories();
-            if (categories.empty()) {
+        case 4: {
+            auto names = apiListCategories(*warehouse);
+            if (names.empty()) {
                 std::cout << "暂无分类。\n";
             }
             else {
                 std::cout << "\n=== 所有分类 ===\n";
-                for (const auto& cat : categories) {
-                    std::cout << "  - " << cat.name
-                        << "（商品数：" << cat.goodsList.size()
-                        << "，最大流水号：" << cat.maxSeq << "）\n";
+                for (const auto& n : names) {
+                    std::cout << "  - " << n << "\n";
                 }
             }
+            break;
         }
-
-        // 商品管理
-        else if (choice == 5) {
+        case 5: {
             std::string category = readNonEmptyString("请输入分类名称: ");
             std::string name = readNonEmptyString("请输入商品名称: ");
             double price = readDouble("请输入单价: ");
@@ -343,20 +315,23 @@ int main() {
             std::string arrivalDate = readNonEmptyString("请输入到货日期（YYYY-MM-DD）: ");
             std::string expiryDate = readNonEmptyString("请输入过期日期（YYYY-MM-DD）: ");
             std::string picture = readNonEmptyString("请输入图片路径（没有则直接回车）: ");
-            std::string newId = warehouse->addGoods(category, name, price, manufacturer, stock, arrivalDate, expiryDate, picture);
+            std::string newId = apiAddGoods(*warehouse, category, name, price, manufacturer, stock,
+                arrivalDate, expiryDate, picture);
             if (newId.empty())
                 std::cout << "[错误]: 上架失败：分类不存在或数据不合法。\n";
             else
                 std::cout << "[信息]: 上架成功！新商品编号: " << newId << "\n";
+            break;
         }
-        else if (choice == 6) {
+        case 6: {
             std::string id = readNonEmptyString("请输入要删除的商品编号: ");
-            if (warehouse->removeGoods(id))
+            if (apiRemoveGoods(*warehouse, id))
                 std::cout << "[信息]: 下架成功。\n";
             else
                 std::cout << "[错误]: 下架失败：商品不存在。\n";
+            break;
         }
-        else if (choice == 7) {
+        case 7: {
             std::string id = readNonEmptyString("请输入要更新的商品编号: ");
             std::string name = readNonEmptyString("请输入新的商品名称: ");
             double price = readDouble("请输入新的单价: ");
@@ -365,135 +340,171 @@ int main() {
             std::string arrivalDate = readNonEmptyString("请输入新的到货日期（YYYY-MM-DD）: ");
             std::string expiryDate = readNonEmptyString("请输入新的过期日期（YYYY-MM-DD）: ");
             Goods updated(id, name, price, manufacturer, stock, arrivalDate, expiryDate, "");
-            if (warehouse->updateGoods(id, updated, &error))
+            if (apiUpdateGoods(*warehouse, id, updated, errorMsg))
                 std::cout << "[信息]: 更新成功。\n";
             else
-                std::cout << "[错误]: "<<error<<"\n";
+                std::cout << "[错误]: " << errorMsg << "\n";
+            break;
         }
-        else if (choice == 8) {
+        case 8: {
             std::string id = readNonEmptyString("请输入要移动的商品编号: ");
             std::string newCategory = readNonEmptyString("请输入目标分类名称: ");
-            std::string newId = warehouse->moveGoodsToCategory(id, newCategory);
+            std::string newId = apiMoveGoods(*warehouse, id, newCategory);
             if (newId.empty())
                 std::cout << "[错误]: 移动失败：商品不存在、无效或目标分类不存在。\n";
             else
                 std::cout << "[信息]: 移动成功！新商品编号: " << newId << "\n";
+            break;
         }
-
-        // 浏览
-        else if (choice == 9) {
-            auto list = warehouse->browseAll();
+        case 9: {
+            auto list = apiBrowseAll(*warehouse);
             displayGoodsList(list, "全部商品");
+            break;
         }
-        else if (choice == 10) {
+        case 10: {
             std::string category = readNonEmptyString("请输入分类名称: ");
-            auto list = warehouse->browseByCategory(category, &error);
-            if (!error.empty())std::cout << "[错误]: "<<error<<"\n";
-            if (list.empty())
+            auto list = apiBrowseByCategory(*warehouse, category, errorMsg);
+            if (!errorMsg.empty()) {
+                std::cout << "[错误]: " << errorMsg << "\n";
+            }
+            else if (list.empty()) {
                 std::cout << "该分类下没有有效商品。\n";
-            else
-                displayGoodsList(list, "分类 [" + category + "] 的商品");
-        }
-        else if (choice == 11) {
-            double min = readDouble("请输入最低价格: ");
-            double max = readDouble("请输入最高价格: ");
-            auto list = warehouse->browseByPriceRange(min, max);
-            displayGoodsList(list, "价格区间 [" + std::to_string(min) + ", " + std::to_string(max) + "] 的商品");
-        }
-        else if (choice == 12) {
-            int min = readInt("请输入最低库存: ");
-            int max = readInt("请输入最高库存: ");
-            auto list = warehouse->browseByStockRange(min, max);
-            displayGoodsList(list, "库存区间 [" + std::to_string(min) + ", " + std::to_string(max) + "] 的商品");
-        }
-        else if (choice == 13) {
-            std::string start = readNonEmptyString("请输入起始到货日期（YYYY-MM-DD）: ");
-            std::string end = readNonEmptyString("请输入结束到货日期（YYYY-MM-DD）: ");
-            auto list = warehouse->browseByArrivalDateRange(start, end);
-            displayGoodsList(list, "到货日期区间 [" + start + ", " + end + "] 的商品");
-        }
-        else if (choice == 14) {
-            std::string start = readNonEmptyString("请输入起始过期日期（YYYY-MM-DD）: ");
-            std::string end = readNonEmptyString("请输入结束过期日期（YYYY-MM-DD）: ");
-            auto list = warehouse->browseByExpiryDateRange(start, end, &error);
-            if (error.empty())displayGoodsList(list, "过期日期区间 [" + start + ", " + end + "] 的商品");
-            else std::cout << "[错误]: " << error << "\n";
-        }
-        else if (choice == 15) {
-            auto list = warehouse->browseInvalid();
-            displayGoodsList(list, "无效商品（待修复）");
-        }
-
-        // 搜索
-        else if (choice == 16) {
-            std::string id = readNonEmptyString("请输入商品编号: ");
-            auto g = warehouse->searchGoodsById(id, &error);
-            if (g.has_value()) {
-                std::cout << "\n找到商品：\n";
-                g.value().display();
             }
             else {
-                std::cout << "[错误]: " << error << "\n";
+                displayGoodsList(list, "分类 [" + category + "] 的商品");
             }
+            break;
         }
-        else if (choice == 17) {
+        case 11: {
+            double min = readDouble("请输入最低价格: ");
+            double max = readDouble("请输入最高价格: ");
+            auto list = apiBrowseByPriceRange(*warehouse, min, max, errorMsg);
+            if (!errorMsg.empty())
+                std::cout << "[错误]: " << errorMsg << "\n";
+            else
+                displayGoodsList(list, "价格区间 [" + std::to_string(min) + ", " + std::to_string(max) + "] 的商品");
+            break;
+        }
+        case 12: {
+            int min = readInt("请输入最低库存: ");
+            int max = readInt("请输入最高库存: ");
+            auto list = apiBrowseByStockRange(*warehouse, min, max, errorMsg);
+            if (!errorMsg.empty())
+                std::cout << "[错误]: " << errorMsg << "\n";
+            else
+                displayGoodsList(list, "库存区间 [" + std::to_string(min) + ", " + std::to_string(max) + "] 的商品");
+            break;
+        }
+        case 13: {
+            std::string start = readNonEmptyString("请输入起始到货日期（YYYY-MM-DD）: ");
+            std::string end = readNonEmptyString("请输入结束到货日期（YYYY-MM-DD）: ");
+            auto list = apiBrowseByArrivalDateRange(*warehouse, start, end, errorMsg);
+            if (!errorMsg.empty())
+                std::cout << "[错误]: " << errorMsg << "\n";
+            else
+                displayGoodsList(list, "到货日期区间 [" + start + ", " + end + "] 的商品");
+            break;
+        }
+        case 14: {
+            std::string start = readNonEmptyString("请输入起始过期日期（YYYY-MM-DD）: ");
+            std::string end = readNonEmptyString("请输入结束过期日期（YYYY-MM-DD）: ");
+            auto list = apiBrowseByExpiryDateRange(*warehouse, start, end, errorMsg);
+            if (!errorMsg.empty())
+                std::cout << "[错误]: " << errorMsg << "\n";
+            else
+                displayGoodsList(list, "过期日期区间 [" + start + ", " + end + "] 的商品");
+            break;
+        }
+        case 15: {
+            auto list = apiBrowseInvalid(*warehouse);
+            displayGoodsList(list, "无效商品（待修复）");
+            break;
+        }
+        case 16: {
+            std::string id = readNonEmptyString("请输入商品编号: ");
+            auto opt = apiSearchById(*warehouse, id, errorMsg);
+            if (opt.has_value()) {
+                std::cout << "\n找到商品：\n";
+                opt->display();
+            }
+            else {
+                std::cout << "[错误]: " << errorMsg << "\n";
+            }
+            break;
+        }
+        case 17: {
             std::string name = readNonEmptyString("请输入商品名称: ");
-            auto list = warehouse->searchGoodsByName(name);
+            auto list = apiSearchByName(*warehouse, name, true); // 模糊
             displayGoodsList(list, "名称包含 \"" + name + "\" 的商品");
+            break;
         }
-        else if (choice == 18) {
+        case 18: {
             std::string manufacturer = readNonEmptyString("请输入生产商: ");
-            auto list = warehouse->searchGoodsByManufacturer(manufacturer);
+            auto list = apiSearchByManufacturer(*warehouse, manufacturer, false); // 精确
             displayGoodsList(list, "生产商为 \"" + manufacturer + "\" 的商品");
+            break;
         }
-
-        // 销售
-        else if (choice == 19) {
+        case 19: {
             std::string id = readNonEmptyString("请输入商品编号: ");
             int quantity = readPositiveInt("请输入购买数量: ");
             int newStock = 0;
-            bool result = warehouse->sellGoods(id, quantity, newStock, &error);
-            if(result)std::cout << "[信息]: 销售成功！剩余库存: " << newStock << "\n";
-            else {
-                std::cout << "[错误]: " << error << "\n";
-            }
+            if (apiSellGoods(*warehouse, id, quantity, newStock, errorMsg))
+                std::cout << "[信息]: 销售成功！剩余库存: " << newStock << "\n";
+            else
+                std::cout << "[错误]: " << errorMsg << "\n";
+            break;
         }
-
-        // 日期浏览
-        else if (choice == 20) {
+        case 20: {
             int days = readPositiveInt("请输入天数（最近多少天到货）: ");
-            auto list = warehouse->browseByArrivalDateRecent(days, &error);
-            displayGoodsList(list, "最近 " + std::to_string(days) + " 天到货的商品");
+            auto list = apiBrowseByArrivalDateRecent(*warehouse, days, errorMsg);
+            if (!errorMsg.empty())
+                std::cout << "[错误]: " << errorMsg << "\n";
+            else
+                displayGoodsList(list, "最近 " + std::to_string(days) + " 天到货的商品");
+            break;
         }
-        else if (choice == 21) {
+        case 21: {
             int days = readPositiveInt("请输入天数（多少天内过期）: ");
-            auto list = warehouse->browseByExpiryDateSoon(days, &error);
-            displayGoodsList(list, "即将在 " + std::to_string(days) + " 天内过期的商品");
+            auto list = apiBrowseByExpiryDateSoon(*warehouse, days, errorMsg);
+            if (!errorMsg.empty())
+                std::cout << "[错误]: " << errorMsg << "\n";
+            else
+                displayGoodsList(list, "即将在 " + std::to_string(days) + " 天内过期的商品");
+            break;
         }
-
-        // 仓库管理
-        else if (choice == 22) {
+        case 22: {
+            // 切换仓库
             std::vector<std::string> saveErrors;
-            if (!warehouse->saveData(saveErrors) || !saveErrors.empty()) {
+            if (!apiSaveWarehouse(*warehouse, saveErrors) || !saveErrors.empty()) {
                 std::cout << "[错误]: 保存当前仓库失败，无法切换。\n";
                 for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
-                continue;
+                break;
             }
-            auto newFiles = scanWarehouseFiles(WAREHOUSE_DIR);
+            auto newFiles = apiScanWarehouseFiles(WAREHOUSE_DIR);
             if (newFiles.empty()) {
                 std::cout << "[错误]: 仓库目录下没有可用的仓库文件。\n";
-                continue;
+                break;
             }
-            std::string newFile = selectWarehouseFile(newFiles);
-            if (newFile.empty()) continue;
+            std::cout << "\n请选择要打开的仓库：\n";
+            for (size_t i = 0; i < newFiles.size(); ++i) {
+                std::cout << "  " << (i + 1) << ". " << newFiles[i] << "\n";
+            }
+            int newChoice;
+            while (true) {
+                newChoice = readInt("请输入编号: ");
+                if (newChoice >= 1 && newChoice <= static_cast<int>(newFiles.size()))
+                    break;
+                std::cout << "无效编号，请重新输入。\n";
+            }
+            std::string newFile = newFiles[newChoice - 1];
             std::string newPath = WAREHOUSE_DIR + "/" + newFile;
             if (!fs::exists(newPath)) {
                 std::cout << "[错误]: 文件不存在。\n";
-                continue;
+                break;
             }
             warehouse = std::make_unique<Warehouse>(newPath);
             errors.clear();
-            loadOk = warehouse->loadData(errors);
+            loadOk = apiLoadWarehouse(*warehouse, newPath, errors);
             if (!loadOk) {
                 std::cout << "[错误]: 新仓库加载失败，程序将退出。\n";
                 for (const auto& e : errors) std::cout << "  - " << e << "\n";
@@ -506,74 +517,80 @@ int main() {
             else {
                 std::cout << "[信息]: 成功切换到仓库: " << newFile << "\n";
             }
+            break;
         }
-        else if (choice == 23) {
+        case 23: {
             std::string name = readNonEmptyString("请输入新仓库名称（不含扩展名）: ");
             std::string filename = name + ".txt";
             std::string fullpath = WAREHOUSE_DIR + "/" + filename;
             if (fs::exists(fullpath)) {
                 std::cout << "[错误]: 仓库文件已存在。\n";
-                continue;
+                break;
             }
-            Warehouse newWarehouse(fullpath);
-            std::vector<std::string> saveErrors;
-            if (!newWarehouse.saveData(saveErrors) || !saveErrors.empty()) {
-                std::cout << "[错误]: 创建仓库失败：\n";
-                for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
-                continue;
+            if (!apiCreateWarehouseFile(fullpath)) {
+                std::cout << "[错误]: 创建仓库失败。\n";
+                break;
             }
             std::cout << "[信息]: 新仓库创建成功。\n";
             std::cout << "是否立即切换到新仓库？(y/n): ";
             std::string ans;
             std::getline(std::cin, ans);
             if (ans == "y" || ans == "Y") {
-                warehouse->saveData(saveErrors);
-                warehouse = std::make_unique<Warehouse>(fullpath);
-                errors.clear();
-                loadOk = warehouse->loadData(errors);
-                if (!loadOk) {
-                    std::cout << "[错误]: 新仓库加载失败。\n";
-                    for (const auto& e : errors) std::cout << "  - " << e << "\n";
+                std::vector<std::string> saveErrors;
+                if (!apiSaveWarehouse(*warehouse, saveErrors) || !saveErrors.empty()) {
+                    std::cout << "[错误]: 保存当前仓库失败，无法切换。\n";
+                    for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
                 }
                 else {
-                    std::cout << "[信息]: 已切换到新仓库。\n";
+                    warehouse = std::make_unique<Warehouse>(fullpath);
+                    errors.clear();
+                    loadOk = apiLoadWarehouse(*warehouse, fullpath, errors);
+                    if (!loadOk) {
+                        std::cout << "[错误]: 新仓库加载失败。\n";
+                        for (const auto& e : errors) std::cout << "  - " << e << "\n";
+                    }
+                    else {
+                        std::cout << "[信息]: 已切换到新仓库。\n";
+                    }
                 }
             }
+            break;
         }
-
-        // ---------- 统计 ----------
-        else if (choice == 24) {
-            auto stats = statistics.getOverallStatistics();
+        case 24: {
+            auto stats = apiGetOverallStatistics(*warehouse);
             printOverallStatistics(stats);
+            break;
         }
-        else if (choice == 25) {
-            auto stats = statistics.getCategoryStatistics();
+        case 25: {
+            auto stats = apiGetCategoryStatistics(*warehouse);
             printCategoryStatistics(stats);
+            break;
         }
-        else if (choice == 26) {
+        case 26: {
             double step = readDouble("请输入价格步长（默认 100）: ");
             if (step <= 0) step = 100.0;
-            auto hist = statistics.getPriceHistogram(step);
+            auto hist = apiGetPriceHistogram(*warehouse, step);
             printPriceHistogram(hist);
+            break;
         }
-        else if (choice == 27) {
+        case 27: {
             int low = readInt("请输入低库存阈值（默认 10）: ");
             int high = readInt("请输入高库存阈值（默认 50）: ");
             if (low < 0) low = 10;
             if (high < low) high = low + 1;
-            auto dist = statistics.getStockDistribution(low, high);
+            auto dist = apiGetStockDistribution(*warehouse, low, high);
             printStockDistribution(dist);
+            break;
         }
-        else if (choice == 28) {
-            auto stats = statistics.getManufacturerStatistics();
+        case 28: {
+            auto stats = apiGetManufacturerStatistics(*warehouse);
             printManufacturerStatistics(stats);
+            break;
         }
-
-        // 退出
-        else if (choice == 0) {
+        case 0: {
             std::cout << "正在保存数据...\n";
             std::vector<std::string> saveErrors;
-            bool saveOk = warehouse->saveData(saveErrors);
+            bool saveOk = apiSaveWarehouse(*warehouse, saveErrors);
             if (!saveOk || !saveErrors.empty()) {
                 std::cout << "[错误]: 保存时出现问题：\n";
                 for (const auto& e : saveErrors) std::cout << "  - " << e << "\n";
@@ -583,14 +600,11 @@ int main() {
                 std::cout << "[信息]: 数据已保存。\n";
             }
             std::cout << "感谢使用，再见！\n";
-            break;
+            return 0;
         }
-        else {
+        default:
             std::cout << "无效选项，请重新选择。\n";
         }
-
         pressAnyKeyToContinue();
     }
-
-    return 0;
 }

@@ -149,14 +149,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BackendAPI.cpp" />
+    <ClCompile Include="Condition.cpp" />
+    <ClCompile Include="FilterNode.cpp" />
     <ClCompile Include="Goods.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Parse.cpp" />
+    <ClCompile Include="Query.cpp" />
     <ClCompile Include="Statistics.cpp" />
     <ClCompile Include="Warehouse.cpp" />
     <ClCompile Include="WelcomePage.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BackendAPI.h" />
+    <ClInclude Include="Condition.h" />
+    <ClInclude Include="FilterNode.h" />
     <ClInclude Include="Goods.h" />
+    <ClInclude Include="Parse.h" />
+    <ClInclude Include="Query.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Statistics.h" />
     <ClInclude Include="Warehouse.h" />

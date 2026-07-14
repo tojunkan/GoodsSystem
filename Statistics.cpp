@@ -66,10 +66,10 @@ std::vector<PriceInterval> Statistics::getPriceHistogram(double step) const {
 
     for (int i = 0; i < intervals; ++i) {
         double lower = i * step;
-        double upper = (i == intervals - 1) ? 0x7ff0000000000000 : (i + 1) * step; // -1 表示无穷
+        double upper = (i == intervals - 1) ? Warehouse::DEFAULT_MAX_PRICE : (i + 1) * step; // -1 表示无穷
         int count = 0;
         for (double p : prices) {
-            if (p >= lower && (upper == 0x7ff0000000000000 || p < upper)) {
+            if (p >= lower && (std::isinf(upper) || p < upper)) {
                 count++;
             }
         }
