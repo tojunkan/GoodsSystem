@@ -10,6 +10,8 @@ Warehouse::Warehouse(const std::string& fname) : filename(fname), isDirty(false)
 
 bool Warehouse::getDirtiness() { return this->isDirty; }
 
+void Warehouse::makeDirty() { this->isDirty = true; }
+
 bool Warehouse::loadData(std::vector<std::string>& errorLines) {
     //  1. 打开文件 
     std::ifstream inFile(filename);

@@ -23,10 +23,47 @@ std::vector<std::string> apiScanWarehouseFiles(const std::string& dir) {
 bool apiCreateWarehouseFile(const std::string& path) {
     if (fs::exists(path)) return false;
     Warehouse newWarehouse(path);
+    newWarehouse.makeDirty();//不修改脏标记的话saveData会直接跳过。
     std::vector<std::string> errors;
     return newWarehouse.saveData(errors) && errors.empty();
 }
 
+bool apiDeleteWarehouseFile(const std::string& path, std::string& error) {
+    try {
+        if (!fs::exists(path)) {
+            error = "文件不存在";
+            return false;
+        }
+        if (!fs::remove(path)) {
+            error = "删除失败，请检查权限或文件是否被占用";
+            return false;
+        }
+        return true;
+    }
+    catch (const fs::filesystem_error& e) {
+        error = "删除异常: " + std::string(e.what());
+        return false;
+    }
+}
+
+bool apiRenameWarehouseFile(const std::string& oldpath, const std::string& newpath, std::string& error) {
+    try {
+        if (!fs::exists(oldpath)) {
+            error = "源文件不存在";
+            return false;
+        }
+        if (fs::exists(newpath)) {
+            error = "目标文件名已存在，无法重命名";
+            return false;
+        }
+        fs::rename(oldpath, newpath);
+        return true;
+    }
+    catch (const fs::filesystem_error& e) {
+        error = "重命名异常: " + std::string(e.what());
+        return false;
+    }
+}
 bool apiLoadWarehouse(Warehouse& wh, const std::string& path, std::vector<std::string>& errors) {
     wh = Warehouse(path);
     return wh.loadData(errors);

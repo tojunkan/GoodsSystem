@@ -8,6 +8,8 @@
 // ========== 仓库文件管理 ==========
 std::vector<std::string> apiScanWarehouseFiles(const std::string& dir);
 bool apiCreateWarehouseFile(const std::string& path);
+bool apiDeleteWarehouseFile(const std::string& path, std::string& error);
+bool apiRenameWarehouseFile(const std::string& oldpath, const std::string& newpath, std::string& error);
 bool apiLoadWarehouse(Warehouse& wh, const std::string& path, std::vector<std::string>& errors);
 bool apiSaveWarehouse(Warehouse& wh, std::vector<std::string>& errors);
 

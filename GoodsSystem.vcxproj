@@ -153,7 +153,9 @@
     <ClCompile Include="Condition.cpp" />
     <ClCompile Include="FilterNode.cpp" />
     <ClCompile Include="Goods.cpp" />
+    <ClCompile Include="CLI.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Parse.cpp" />
     <ClCompile Include="Query.cpp" />
     <ClCompile Include="Statistics.cpp" />
@@ -165,6 +167,7 @@
     <ClInclude Include="Condition.h" />
     <ClInclude Include="FilterNode.h" />
     <ClInclude Include="Goods.h" />
+    <QtMoc Include="MainWindow.h" />
     <ClInclude Include="Parse.h" />
     <ClInclude Include="Query.h" />
     <ClInclude Include="resource.h" />
@@ -185,9 +188,6 @@
   <ItemGroup>
     <Text Include="warehouses\debugtest.txt" />
     <Text Include="warehouses\debugtest2.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <QtUic Include="WelcomePage.ui" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(QtMsBuild)\qt.targets" Condition="Exists('$(QtMsBuild)\qt.targets')" />

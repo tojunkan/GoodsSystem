@@ -37,6 +37,8 @@ public:
 
     bool getDirtiness();
 
+    void makeDirty();
+
     // 1. 从文件加载数据
     bool loadData(std::vector<std::string>& errorLines);
 

@@ -19,14 +19,14 @@
     <Filter Include="源文件\Backend">
       <UniqueIdentifier>{e2995b87-4864-42ee-a1a9-179acb80ab44}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Frontend">
+      <UniqueIdentifier>{1d789794-b835-42f8-8cae-e48dd6e1ef08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Frontend">
+      <UniqueIdentifier>{ef343e8a-4874-4795-bc4f-4922546a2bc6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="WelcomePage.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Condition.cpp">
       <Filter>源文件\Backend</Filter>
     </ClCompile>
@@ -50,6 +50,18 @@
     </ClCompile>
     <ClCompile Include="BackendAPI.cpp">
       <Filter>源文件\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="WelcomePage.cpp">
+      <Filter>源文件\Frontend</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CLI.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MainWindow.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -87,8 +99,10 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="warehouses\debugtest.txt" />
     <Text Include="warehouses\debugtest2.txt" />
+    <Text Include="warehouses\debugtest.txt">
+      <Filter>资源文件</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md">
@@ -100,10 +114,10 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="WelcomePage.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\Frontend</Filter>
     </QtMoc>
-  </ItemGroup>
-  <ItemGroup>
-    <QtUic Include="WelcomePage.ui" />
+    <QtMoc Include="MainWindow.h">
+      <Filter>头文件\Frontend</Filter>
+    </QtMoc>
   </ItemGroup>
 </Project>

@@ -86,15 +86,17 @@
 | ---分割线---                             |
 | 搜索                                     |
 | [LineEdit] [x] 模糊搜索                  |
+| [删除分区][重命名分区]（带悬停展开动画） |
+| [ + ] (带悬停展开动画，详见“动画设计”) |
 | ---分割线---                             |
 | 分类列表                                 |
-| [ + ] (带悬停展开动画，详见“动画设计”) |
 | 📦 全部商品 (总件数)                    |  ← 虚拟分类项，仅当仓库非空时显示
-| * 电子产品 (12)                         |
-| * 办公用品 (8)                          |
-| * 食品 (5)                              |
+| * 电子产品 (12)                          |
+| * 办公用品 (8)                           |
+| * 食品 (5)                               |
 | ...                                      |
 | (滚动区域)                               |
+| ---分割线---                             |
 +------------------------------------------+
 ```
 
@@ -104,7 +106,13 @@
 - `QPushButton *quickSellBtn`（文本 "确认"）
 - `QLineEdit *searchEdit`（占位文本 "搜索分类..."）
 - `QCheckBox *fuzzyCheckBox`（文本 "模糊"）
-- `QWidget *addCategoryContainer`（包含“+”标签、输入框和确认按钮，默认折叠，悬停展开，详见“七、动画设计”）
+- `QWidget *addCategoryContainer`（包含“+”、输入框和确认按钮，默认折叠，悬停展开，详见“七、动画设计”）
+  - `QPushButton *addButton`
+  - `QLineEdit *nameEdit`
+- `QWidget *modifyCategoryContainer`（包含删除按钮、重命名按钮和输入框，默认折叠，悬停展开）
+  - `QPushButton *deleteButton`
+  - `QPushbutton *renameButton`
+  - `QLineEdit *newnameEdit`
 - `QListWidget *categoryList`（自定义Item，显示分类名和商品数，悬停时高亮）。**列表顶部固定插入虚拟项“📦 全部商品”**（显示总有效商品数），其余为实际分类。
 
 **交互**：
@@ -125,6 +133,10 @@
 - 新建分类：悬停在`addCategoryContainer`上时，容器内的“+”标签平滑左移，同时右侧展开输入框和确认按钮；输入新分类名后点击确认或按回车，调用`warehouse.createCategory`，刷新列表并自动折叠容器。
   - **焦点锁定**：当输入框（`m_nameEdit`）获得焦点时，鼠标离开容器**不会触发折叠动画**，防止用户正在输入时丢失内容。只有输入框失去焦点且鼠标已离开容器，才执行折叠。
   - 按 `Escape` 键立即取消输入并折叠（无动画）。
+
+**编辑脏数据检查（`editDirty`）**：
+- 在编辑模式下，任何控件值变化时设置 `editDirty = true`。
+- 退出时弹出`QMessageBox`询问用户是否保存当前页面中的编辑结果。
 
 ### 右栏设计（VBoxLayout）
 
@@ -151,7 +163,7 @@
 ```
 
 **控件**：
-- 图表区域：用`QGridLayout`放置四个`QQuickWidget`（每个加载一个QML图表组件）。
+- 图表区域：用`QGridLayout`放置四个`QChart`（每个加载一个QtChart组件，不启用QML）。
 - 预警区域：三个`QGroupBox`，每个内部包含一个`QListWidget`显示对应预警商品列表（包含商品全部字段 + 所属分类）。
 
 **交互**：
@@ -184,21 +196,16 @@
 | 当前分类: 全部商品 (或 电子产品)         |
 | [← 返回仪表盘]                          |
 | ---分割线---                             |
-|  全部商品 (总件数)                       |  ← 虚拟分类项，固定置顶
-| * 电子产品 (12)                          |
-| * 办公用品 (8)                           |
-| * 食品 (5)                               |
-| ...                                      |
-| (滚动区域)                               |
-| ---分割线---                             |
 | 搜索                                     |
-| [LineEdit] [x] 模糊搜索                  |
+| [x] 通过ID: [LineEdit]                   |
+| [x] 通过商品名：[LineEdit] [x] 模糊搜索  |
+| [x] 通过供货商：[LineEdit] [x] 模糊搜索  |
 | ---分割线---                             |
-| 浏览条件                                 |
-| 价格: [min] ~ [max]                      |
-| 库存: [min] ~ [max]                      |
-| 到货: [起始] ~ [结束]                    |
-| 保质期: [起始] ~ [结束]                  |
+| 筛选条件                                 |
+| [x] 价格: [min] ~ [max]                  |
+| [x] 库存: [min] ~ [max]                  |
+| [x] 到货: [起始] ~ [结束]                |
+| [x] 保质期: [起始] ~ [结束]              |
 | [应用浏览] [重置浏览]                    |
 +------------------------------------------+
 ```
@@ -206,13 +213,25 @@
 **控件**：
 - `QLabel *currentCategoryLabel`
 - `QPushButton *backBtn`（返回仪表盘）
-- `QListWidget *categoryList`：顶部固定插入虚拟项“ 全部商品”，其后显示总有效商品数；其余为实际分类。
-- `QLineEdit *searchEdit`（占位文本 "搜索名称/编号..."）
-- `QCheckBox *fuzzyCheckBox`（模糊搜索开关）
+- `QCheckBox *idCheckBox`（是否通过id搜索）
+- `QLineEdit *idEdit`（占位文本 "通过编号搜索..."）
+- `QCheckBox *nameCheckBox`（是否通过名称搜索）
+- `QLineEdit *nameEdit`（占位文本 "通过名称搜索..."）
+- `QCheckBox *nameFuzzyCheckBox`（名称模糊搜索开关）
+- `QCheckBox *manufacturerCheckBox`（是否通过供货商搜索）
+- `QLineEdit *manufacturerEdit`（占位文本 "通过供货商搜索..."）
+- `QCheckBox *manufacturerFuzzyCheckBox`（供货商模糊搜索开关）
+- `QCheckBox *priceCheckBox`（是否通过价格区间筛选）
 - `QDoubleSpinBox *minPriceSpin`, `maxPriceSpin`（范围0~9999，步长10）
+- `QCheckBox *stockCheckBox`（是否通过库存区间筛选）
 - `QSpinBox *minStockSpin`, `maxStockSpin`
+- `QCheckBox *arrivaldateCheckBox`（是否通过最近进货日期筛选）
 - `QDateEdit *startArrivalEdit`, `endArrivalEdit`（默认今天和一年后）
+- `QCheckBox *expirydateCheckBox`（是否通过最早过期日期筛选）
 - `QDateEdit *startExpiryEdit`, `endExpiryEdit`
+- `QCheckBox *categoryCheckBox`（是否通过分区筛选）
+- `QListWidget *categoryMenu`（仅限全局模式下可见）
+  - `QCheckbox *categorySelector`（复选框实现）
 - `QPushButton *applyFilterBtn`, `resetFilterBtn`
 
 **交互**：
@@ -221,14 +240,17 @@
   - 点击具体分类 → 设置 `AppContext.currentCategory = 分类名`，**同样清空搜索框和筛选条件**，调用 `refreshManagement()` 加载 `browseByCategory(分类名)` 的数据。
   - 点击分类时，清除上一个选中项的高亮，高亮当前项。
 - **搜索输入**实时触发（`textChanged`），根据 `fuzzyCheckBox` 决定是否模糊匹配，在现有 `m_displayList` 基础上进行二次过滤。
-- **浏览条件**点击“应用”后，重新计算 `m_displayList` 并刷新表格。
+- **浏览条件**点击“应用”后，前端自动生成S表达式，并调用后端`Query::queryBySExpr`，重新计算 `m_displayList` 并刷新表格。同时在`AppContext`里加载当前的筛选条件，以实现期有效。
 - **重置按钮**：恢复所有条件为默认值（价格0~无穷，库存0~无穷，日期全范围），**同时清空 `searchEdit` 和取消 `fuzzyCheckBox` 的勾选**。
-- **返回按钮** → 检查 `m_hasUnsavedEdit`（编辑状态）和 `isDirty`，弹出确认框，同意则发射 `backToDashboardRequested()` 信号。
 
 **多分类聚焦（仅全局模式下可见）**：
-- 当 `AppContext.currentCategory` 为空时，在搜索框下方显示 `QComboBox` 风格的“分类筛选”控件（使用 `QMenu` + 带复选框的 `QAction`），列出所有分类，默认全选。
+- 当 `AppContext.currentCategory` 为空时，在搜索框下方显示 `QListWidget` 的“分类筛选”控件，列出所有分类，默认全选。
 - 用户取消勾选某些分类后，`refreshManagement()` 会在内存中过滤掉这些分类的商品（基于 `GoodsWithCategory` 结构体中的分类名），再应用其他筛选条件。
 - 状态栏显示“已选 N 个分类，共 X 件商品”。
+
+**查询机制**:
+- UI控件动态生成S表达式（`buildSExpr()`），调用`apiQueryBySEpxr`获取具体数据。如果表达式为空，则默认返回全部商品。如果中间出现错误，则应当通过`errorLines`反馈（弹出`QMessageBox`）
+- 特殊值约定：QDate(1900, 1, 1)---setSpecialValueText-->“不限” QDate(9999, 12, 31)--->“长期”“今天”的特殊值只在初始化时给出。
 
 ### 中栏设计（VBoxLayout）
 
@@ -249,7 +271,7 @@
 - `QLabel *statusLabel`
 
 **交互**：
-- 点击`tableView`行 → 填充右侧详情面板（只读模式）。如果当前处于编辑模式（`m_hasUnsavedEdit == true`），弹出提示“请先提交或取消当前编辑”，不允许切换行。
+- 点击`tableView`行 → 填充右侧详情面板（只读模式）。如果当前处于编辑模式（`editDirty == true`），弹出提示“请先提交或取消当前编辑”，不允许切换行。
 - 双击行（可选） → 快速进入编辑模式（但按照设计方案，编辑通过右侧按钮触发）。
 - 表格支持点击表头排序，排序仅作用于当前内存中的 `m_displayList`，不触发后端查询。
 
@@ -270,7 +292,7 @@
 | 销售                                     |
 | 数量: [SpinBox] [🛒销售]                |
 | ---分割线---                             |
-| [🗑️下架] [📂转移至...]                  |
+| [🗑️下架] [📂转移至...][ComboBox]        |
 +------------------------------------------+
 ```
 
@@ -281,29 +303,29 @@
 - `QSpinBox *sellQtySpin`（最小值1）
 - `QPushButton *sellBtn`（纯图标 🛒）
 - `QPushButton *removeBtn`（🗑️），`moveBtn`（📂）
+- `QComboBox *selectiveCategory`
 
 **交互**：
-- 选中行 → 填充只读模式。
+- 选中行 → 填充右栏，只读模式。
 - 点击“编辑” → 切换到编辑模式，禁用`sellBtn`、`removeBtn`、`moveBtn`，`editBtn`隐藏，`submitBtn`和`cancelBtn`显示。缓存当前商品数据快照（用于取消时还原）。
-- 点击“提交” → 验证数据（非空、数值合法），调用`warehouse.updateGoods`，若成功则设置 `m_hasUnsavedEdit = false`，切回只读模式，调用 `refreshManagement()` 刷新表格并重新填充当前行详情；若失败则弹窗显示错误信息，保持编辑模式。
-- 点击“取消” → 放弃修改，从快照恢复数据，`m_hasUnsavedEdit = false`，切回只读模式。
+- 点击“提交” → 验证数据（非空、数值合法），调用`warehouse.updateGoods`，若成功则设置 `editDirty = false`，切回只读模式，调用 `refreshManagement()` 刷新表格并重新填充当前行详情；若失败则弹窗显示错误信息，保持编辑模式。
+- 点击“取消” → 放弃修改，从快照恢复数据，`editDirty = false`，切回只读模式。
 - 点击“销售” → 读取数量，调用`warehouse.sellGoods`，成功后调用 `refreshManagement()` 更新表格和库存数据，重新填充当前行详情；失败则弹窗报错。
 - 点击“下架” → 弹出`QMessageBox::question`确认，确认后调用`warehouse.removeGoods`，刷新列表并清空详情面板。
 - 点击“转移” → 弹出一个内联选择器（或简单对话框），显示目标分类下拉列表。**该下拉列表排除当前商品所属分类**；若仓库中仅有一个分类（即无可转移目标），则“转移”按钮置灰（`setEnabled(false)`）。选择目标分类后调用 `warehouse.moveGoodsToCategory`，成功后刷新列表并清空详情面板（因商品ID已变）。
 
-**编辑脏数据检查（`m_hasUnsavedEdit`）**：
-- 在编辑模式下，任何控件值变化时设置 `m_hasUnsavedEdit = true`。
-- 页面切换、返回、关闭窗口时，优先检查该标志，若有未保存编辑，弹出 `QMessageBox`（保存/不保存/取消），根据用户选择执行提交、取消或中断操作。
+**编辑脏数据检查（`editDirty`）**：
+- 在编辑模式下，任何控件值变化时设置 `editDirty = true`。
+- 退出时弹出`QMessageBox`询问用户是否保存当前页面中的编辑结果。
 
 **数据流**：
 - 成员变量：
-  - `std::vector<Goods> m_displayList`（当前显示的商品列表）
-  - `QString m_currentCategory`（空表示全局模式）
-  - `bool m_hasUnsavedEdit`（编辑状态标志）
+  - `std::vector<Warehouse::GoodsWithCategory> m_displayList`（当前显示的商品列表）
+  - `editDirty = false`当前页面是否有未保存的编辑
 - 刷新逻辑：
   - `refreshManagement()`：
-    1. 根据 `m_currentCategory` 调用 `warehouse.browseAll()` 或 `warehouse.browseByCategory(category)` 获取基础数据。
-    2. 若为全局模式且多分类筛选有选择，则在内存中过滤掉未选中分类的商品。
+    1. 根据 `m_currentCategory` 调用 `warehouse.browseAll()` 或 自动通过`buildSExpr()`生成S表达式并通过`apiQueryBySExpr`获取基础数据。
+    2. 若为全局模式且多分类筛选有选择，则在内存中过滤掉未选中分类的商品，实现方式同上文存在`m_currentCategory`的情况。
     3. 应用价格/库存/日期筛选条件。
     4. 应用搜索关键词（名称或编号，根据模糊开关）。
     5. 更新 `QStandardItemModel`。
@@ -349,12 +371,14 @@
 
 ### 2. SettingsDialog
 - **用途**：全局参数设置。
-- **布局**：`QFormLayout`包含：
+- **布局**：第一个是`QFormLayout`包含：
   - 低库存阈值（`QSpinBox`）
   - 高库存阈值（`QSpinBox`）
   - 到货提醒天数（`QSpinBox`）
   - 过期提醒天数（`QSpinBox`）
   - 默认视图模式（`QComboBox`：列表/图标）
+- 第二个是`QVBoxLayout`，包含：
+  - 筛选条件的操作，同ManagementPage页面中的设置。此处存储所有的控件值的快照，和ManagementPage对齐。
 - **确认**：保存到`QSettings`，发射`settingsChanged()`信号（可选）。
 
 ### 其他对话框
@@ -377,8 +401,6 @@
 - “退出” → 检查脏状态，保存后退出。
 
 ---
-
-## 七、动画设计
 
 ## 七、动画设计
 
@@ -456,7 +478,7 @@ private:
 
 ```
 
-### 2. WelcomePage 的“新建仓库”按钮拉伸动画
+### 2. WelcomePage 的“新建仓库”按钮拉伸动画、以及DashboardPage中的“重命名分区”按钮拉伸动画
 - **交互行为**：
   - 默认状态：三个按钮（新建仓库、刷新列表、重命名仓库）在水平布局中**等宽**（各占约 33.3%）。
   - 鼠标悬停到“新建仓库”按钮时，该按钮的**宽度**平滑增加至容器总宽度的 **50%**，其余两个按钮等分剩余空间（各占 25%）。
@@ -473,10 +495,10 @@ private:
 - **控件结构**：
   ``` text
   +--------------------------------------------------+
-  |  HBoxLayout (按钮容器)                            |
-  |  [新建仓库] [刷新列表] [重命名仓库]               |
+  |  HBoxLayout (按钮容器)                           |
+  |  [新建仓库] [刷新列表] [重命名仓库]              |
   |  默认：等宽 (1:1:1)                              |
-  |  悬停：新建仓库占比 50%，其余均分剩余             |
+  |  悬停：新建仓库占比 50%，其余均分剩余            |
   +--------------------------------------------------+
   ```
 - **代码骨架（简述）**：
@@ -575,40 +597,38 @@ private:
 
 ---
 
-## 九、特殊日期处理（“今天”和“长期”）
+## 九、特殊日期处理（“今天”和“长期”、以及最小日期）
 
 在日期相关的输入场景中（如筛选条件、商品录入），需要便捷地选择“今天”或“长期（永不过期）”。不同场景采用不同策略：
 
 ### 1. 作为筛选条件（ManagementPage 左侧的日期区间）
-- **“长期”**：将 `QDateEdit` 的 `maximumDate` 设置为 `QDate(9999, 12, 31)`，并调用 `setSpecialValueText("长期")`。默认结束日期即为“长期”，用户无需手动滚动到 9999 年。
-- **“今天”**：在每个日期输入框旁边放置一个小型 `QToolButton`（带圆点图标或“今”字），点击后将对应日期设为 `QDate::currentDate()`。
-- **“清除/不限”**：每个日期行再增加一个“×”清除按钮，点击后将日期重置为一个**极小的日期**（如 `2000-01-01`），在后端逻辑中该日期被视为“无限制”（不参与过滤）。
+- **“长期”**：虽然后端实现的时候加了一个特殊值，但是前端如果想要设置“长期”可以直接置空。后端的查询方式支持开区间。
+- **“今天”**：一次性在初始化的时候填入。具体来说到货日期默认结束在今天，保质期默认起始在今天。
 - **控件布局示例**：
   ``` text
-  到货日期: [起始: 2024-01-01] [●今天] [×]  ~  [结束: 长期] [●今天] [×]
-  保质期:   [起始: 2024-01-01] [●今天] [×]  ~  [结束: 长期] [●今天] [×]
+  到货日期: [起始: 2024-01-01]   ~  [结束: 长期] 
+  保质期:   [起始: 2024-01-01]   ~  [结束: 长期] 
   ```
 
 ### 2. 作为商品属性（AddGoodsDialog 中的保质期录入）
 - 在保质期字段旁增加一个 `QCheckBox`，文字为“长期/永不过期”。
 - 勾选后，`QDateEdit` 被禁用（`setEnabled(false)`），并显示为“长期”（可通过设置 `setSpecialValueText` 或直接显示文本）。
-- 取消勾选则恢复日期编辑，并默认填充当前日期 + 1 年（或留空）。
+- 取消勾选则恢复日期编辑，并默认留空。
 - 保存时，若勾选则存入 `Goods::DEFAULT_EXPIRY_DATE`（即 `"9999-12-31"`）。
 
 ### 3. 注意点
-- 在筛选场景下，**不要**将“今天”设置为 `QDateEdit` 的 `minimumDate`，否则用户无法选择今天之前的日期。应使用独立按钮实现快捷输入。
 - “长期”的特殊值文本仅在日期达到最大值时显示，因此需确保用户无法通过手动输入超出范围。
 - 所有日期控件均使用 `QDateEdit` 并设置日历弹出（`setCalendarPopup(true)`），方便用户点选。
 
 ### 4. 与后端对接
-- 筛选时，若日期为特殊值（如 `2000-01-01` 或 `9999-12-31`），在构建查询条件时将其视为无限制或特定逻辑（例如 `9999-12-31` 表示永不截止）。
+- 筛选时，若日期为特殊值（如 `9999-12-31`），在构建查询条件时将其视为无限制或特定逻辑（例如 `9999-12-31` 表示永不截止）。
 - 存储时，保质期字段若为 `DEFAULT_EXPIRY_DATE`，则视为永不过期。
 ---
 
 ## 十、图标与样式
 
 **图标策略**：
-- 采用 **Font Awesome 6**（免费版）或 **Material Design Icons**，集成到 Qt 资源系统（`.qrc`）中。
+- 优先使用`QStyle::SP_*`标准图表，特殊图标下载SVG后放入`resources/icons/`目录并使用`.qrc`资源文件管理。
 - **主要行动按钮**（如“确认销售”、“确认上架”）使用 **图标+文字** 形式，确保一目了然。
 - **辅助操作按钮**（如编辑、提交、取消、下架、转移、刷新、返回等）使用 **纯图标**，节省空间，界面更干净。
 - 所有纯图标按钮必须设置 `setToolTip()`，悬停时显示功能说明。
@@ -651,6 +671,15 @@ public:
     Warehouse* currentWarehouse;   // 当前仓库
     QSettings* settings;           // 全局配置
     std::optional<std::string> currentCategory; // 当前管理页聚焦的分类（nullopt 表示“全部商品”）
+
+    struct DashboardCache {
+        OverallStatistics overall;
+        std::vector<CategoryStatistics> categories;
+        std::vector<PriceInterval> priceHistogram;
+        StockDistribution stockDist;
+        std::vector<ManufacturerStatistics> manufacturerStats;
+        bool valid = false;  // 标记缓存是否有效
+    };
     // 未来扩展：用户、多仓库管理器等
 };
 ```
@@ -667,19 +696,22 @@ public:
 ## 十二、页面切换与保存检查流程
 
 - **页面激活刷新策略（核心规则）**：
-  1. 每次切换到 `DashboardPage` 时（通过 `QStackedWidget` 的 `currentChanged` 信号或重写 `showEvent`），**无条件调用 `refreshDashboard()`**，确保仪表盘为最新汇总数据。
-  2. 每次切换到 `ManagementPage` 时，如果 `AppContext.currentCategory` 有值（或为空），则调用 `refreshManagement()` 加载对应数据。
-  3. 从 `ManagementPage` 返回 `DashboardPage` 时，先检查 `m_hasUnsavedEdit` 和 `isDirty`，处理后由规则1自动刷新。
-  4. 刷新粒度：
+  1. 整个项目一共有三层数据：磁盘文件中的数据（磁盘层）、内存中数据（内存层）、前端显示的数据（显示层），其中内存永远比其他两者快。但`isDirty`只协调内存层和磁盘层，显示层与内存层之间的区别由`DashboardCache.valid`维护。
+  2. 显示层的数据区分还有以下分层：同一个页面内部的、跨页面的。其中同一个页面内部应该在数据更新的时候立刻更新本页面的前端显示，而跨页面的显示层差异需要通过在`AppContext`中设置标志来完成。
+  3. 此外，还有用户在正编辑某个值的时候退出当前界面的情况，这种情况应该提醒用户保存自己的编辑，用editDirty保存即可，每个页面自己保存一份。
+  4. 每次切换到 `DashboardPage` 时（通过 `QStackedWidget` 的 `currentChanged` 信号或重写 `showEvent`），**无条件调用 `refreshDashboard()`**，确保仪表盘为最新汇总数据。
+  5. 每次切换到 `ManagementPage` 时，检查 `AppContext.currentCategory` 的值（空则说明全局），并调用 `refreshManagement()` 加载对应数据。
+  6. 从 `ManagementPage` 返回 `DashboardPage` 时，先检查 `m_hasUnsavedEdit` ，处理后由规则3自动刷新。
+  7. 从 `ManagementPage` 返回 `DashboardPage` 时也是同理，比如要加载高亮行等。
+  8. 刷新粒度：
      - `refreshDashboard()`：全量刷新（图表、预警、分类列表）。
-     - `refreshManagement()`：全量刷新表格，清空右侧详情面板，不自动选中任何行。
+     - `refreshManagement()`：全量刷新表格，清空右侧详情面板，取消焦点。
 - **切换仓库**（从任何页面点击菜单"切换仓库"）：
- - 检查 `m_hasUnsavedEdit`（编辑状态）和 `isDirty`，若有未保存则弹出 `QMessageBox`（保存/不保存/取消）。
+ - 检查 `editDirty`（编辑状态）和 `isDirty`，若有未保存则分别弹出 `QMessageBox`（保存/不保存/取消）。
  - 若取消则中断，否则执行切换（回到 `WelcomePage`）。
 - **返回仪表盘**（从`ManagementPage`点击返回）：
- - 优先检查 `m_hasUnsavedEdit`，若为 true 则弹出确认（保存/不保存/取消）。
- - 若取消则留在当前页，否则保存或不保存后发射 `backToDashboardRequested()`。
-- **关闭窗口**：重写 `closeEvent`，检查所有页面的 `m_hasUnsavedEdit` 和 `isDirty`，统一提示。
+ - 由于数据并无丢失，只是前端界面区别，因此可以直接通过`refreshDashboard()`函数对齐，刷新后再重置`editDirty`为`false`即可。
+- **关闭窗口**：重写 `closeEvent`，检查`isDirty`，协调内存层和磁盘层，依此提示，因为不再需要考虑前端问题了。
 
 ---
 
@@ -700,7 +732,7 @@ public:
 | `WelcomePage` | `warehouseSelected(path)` | `MainWindow` | `onWarehouseSelected(path)` | 加载仓库，设置 `currentCategory = nullopt`，切换到 `ManagementPage` |
 | `DashboardPage` | `categoryClicked(name)` | `MainWindow` | `onCategoryClicked(name)` | 更新 `currentCategory`，切换到 `ManagementPage` 并调用 `loadCategory(name)` |
 | `DashboardPage` | `switchWarehouseRequested()` | `MainWindow` | `onSwitchWarehouse()` | 检查 `isDirty()`，回到 `WelcomePage` |
-| `ManagementPage` | `backToDashboardRequested()` | `MainWindow` | `switchToDashboard()` | 检查 `m_hasUnsavedEdit` 和 `isDirty()`，切回 `DashboardPage` |
+| `ManagementPage` | `backToDashboardRequested()` | `MainWindow` | `switchToDashboard()` | 检查 `editDirty` 和 `isDirty()`，切回 `DashboardPage` |
 | `ManagementPage` | `statusMessageChanged(msg, timeout)` | `MainWindow` | `updateStatusBar(msg, timeout)` | 在状态栏显示消息 |
 | `SettingsDialog` | `settingsChanged()` | `MainWindow` | `onSettingsChanged()` | 刷新所有阈值相关 UI（Dashboard 预警等） |
 
@@ -735,13 +767,13 @@ public:
 
 | 源对象 | 源信号 | 目标槽 | 说明 |
 |--------|--------|--------|------|
-| `backBtn` | `clicked()` | `onBackClicked()` | 检查 `m_hasUnsavedEdit`，发射 `backToDashboardRequested()` |
+| `backBtn` | `clicked()` | `onBackClicked()` | 检查 `editDirty`，发射 `backToDashboardRequested()` |
 | `categoryList` | `itemClicked(item)` | `onCategoryItemClicked(item)` | 切换分类/全部商品，重置搜索筛选，调用 `refreshManagement()` |
 | `searchEdit` | `textChanged(text)` | `onSearchTextChanged(text)` | 在 `m_displayList` 基础上实时过滤 |
 | `fuzzyCheckBox` | `toggled(checked)` | `onFuzzyToggled(checked)` | 切换模糊匹配，重新应用搜索 |
 | `applyFilterBtn` | `clicked()` | `onApplyFilter()` | 应用价格/库存/日期筛选，刷新表格 |
 | `resetFilterBtn` | `clicked()` | `onResetFilter()` | 重置所有条件，清空搜索框，刷新表格 |
-| `tableView` | `clicked(index)` | `onTableRowSelected(index)` | 若 `m_hasUnsavedEdit` 为 true 则提示；否则填充右侧详情面板 |
+| `tableView` | `clicked(index)` | `onTableRowSelected(index)` | 若 `editDirty` 为 true 则提示；否则填充右侧详情面板 |
 | `editBtn` | `clicked()` | `onEditClicked()` | 切换编辑模式，缓存快照，禁用销售/下架/转移按钮 |
 | `submitBtn` | `clicked()` | `onSubmitClicked()` | 验证数据 → 调用 `warehouse.updateGoods()` → 成功则调用 `refreshManagement()` 并发射 `statusMessageChanged` |
 | `cancelBtn` | `clicked()` | `onCancelClicked()` | 从快照恢复数据，切回只读模式 |
@@ -754,7 +786,7 @@ public:
 - `loadCategory(category)`：设置 `m_currentCategory`，清空搜索和筛选，调用 `refreshManagement()`
 - `refreshManagement()`：从仓库获取数据 → 应用多分类过滤 → 应用价格/库存/日期筛选 → 应用搜索词 → 更新表格模型 → 清空详情面板 → 更新状态栏
 - `setViewMode(mode)`：切换 `QStackedWidget` 的当前索引（列表/图标视图）
-- `checkAndSaveEdit()`：若 `m_hasUnsavedEdit` 为 true，弹出保存确认框，返回用户选择（用于阻断页面切换）
+- `checkAndSaveEdit()`：若 `editDirty` 为 true，弹出保存确认框，返回用户选择（用于阻断页面切换）
 
 ### 5. 菜单栏连接（由 MainWindow 建立）
 
@@ -814,38 +846,40 @@ public:
 |--------  |  +------------+  +------------+                  |
 |搜索      |  +------------+  +------------+                  |
 | [___] [x]|  | 库存分布   |  | 生产商     |                  |
-|--------  |  | (柱状图)   |  | Top10      |                  |
-|分类列表  |  +------------+  +------------+                  |
-| [+]      |--------------------------------------------------|
-| *电子(12)|  预警区 (HBox)                                   |
-| *办公(8) |  +----------+ +----------+ +----------+          |
-| *食品(5) |  |库存预警  | |到货提醒  | |过期提醒  |          |
-| ...      |  |(List)    | | (List)   | | (List)   |          |
-+----------+  +----------+ +----------+ +----------+          |
-+-------------------------------------------------------------+
+|[D]    [R]|  | (柱状图)   |  | Top10      |                  |
+|   [+]    |  +------------+  +------------+                  |
+|--------  |--------------------------------------------------|
+|分类列表  |  预警区 (HBox)                                   |
+| *电子(12)|  +----------+ +----------+ +----------+          |
+| *办公(8) |  |库存预警  | |到货提醒  | |过期提醒  |          |
+| *食品(5) |  |(List)    | | (List)   | | (List)   |          |
+| ...      |  +----------+ +----------+ +----------+          |
++----------+--------------------------------------------------+
 ```
 
 **ManagementPage**
 ``` text
-+-------------+----------------------------------------+---------+
-|当前分类     |  QTableView / QListView                | 详情    |
-| 电子        |  编号 | 名称 | 单价 | 厂商 | 库存 | ...| 编号:   |
-|[返回]       |----------------------------------------| 名称:   |
-|-------------|  01001X| 苹果 | 5.00 | 果农 | 100 |    | 单价:   |
-|搜索         |  010026| 香蕉 | 3.50 | 果农 | 80  |    | 厂商:   |
-|[___][x]     |  ...                                   | 库存:   |
-|-------------|                                        | 到货:   |
-|浏览条件     |                                        | 保质期: |
-|价格:        |                                        | [编辑]  |
-|[min]~[max]  |                                        | --------|
-|库存:        |                                        | 销售:   |
-|[min]~[max]  |                                        | [5] [√]|
-|到货:        |                                        | --------|
-|[起始]~[结束]|                                        | [下架]  |
-|保质期:      |                                        | [转移]  |
-|[起始]~[结束]|                                        |         |
-|[应用] [重置]|                                        |         |
-+-------------+----------------------------------------+---------+
++-----------------+----------------------------------------+---------+
+|当前分类         |  QTableView / QListView                | 详情    |
+| 电子            |  编号 | 名称 | 单价 | 厂商 | 库存 | ...| 编号:   |
+|[返回]           |----------------------------------------| 名称:   |
+|-----------------|  01001X| 苹果 | 5.00 | 果农 | 100 |    | 单价:   |
+|搜索             |  010026| 香蕉 | 3.50 | 果农 | 80  |    | 厂商:   |
+|[x]id  ：[___]   |  ...                                   | 库存:   |
+|[x]名称：[___][x]|                                        | 到货:   |
+|[x]来源：[___][x]|                                        | 保质期: |
+|---------------- |                                        | [编辑]  |
+|浏览条件         |                                        |---------|
+|价格：           |                                        | 销售:   |
+|[x][min]~[max]   |                                        | [5] [√]|
+|[x]库存:         |                                        |---------|
+|[x][min]~[max]   |                                        | [下架]  |
+|[x]到货:         |                                        | [转移]  |
+|[起始]~[结束]    |                                        |         |
+|[x]保质期:       |                                        |         |
+|[起始]~[结束]    |                                        |         |
+|[应用] [重置]    |                                        |         |
++-----------------+----------------------------------------+---------+
 ```
 
 ---
@@ -853,3 +887,6 @@ public:
   ## 十五、未来扩展
 
 - **无效商品修复对话框**：当前版本仅显示加载时的错误警告，暂不提供修复功能。后续可设计一个独立的 `FixInvalidDialog`，通过 `browseInvalid()` 获取所有无效商品，复用 `updateGoods` 逻辑进行修复。此功能待后续迭代实现。
+- **高级搜索对话框**：当前版本后端可以通过S表达式进行复杂搜索，但尚未在前端进行对齐。
+- **预警区商品跳转**：当前版本仅供浏览，但后期可以加入跳转代码。
+- **线程安全**：当前版本全部工作都是单一线程内完成的，后期需要考虑加载数据等问题的多线程安全问题。不过此部分后端还未完善。
